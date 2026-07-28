@@ -22,6 +22,14 @@ from pathlib import Path
 import pandas as pd
 import payroll_core as pc
 
+# Windows 콘솔의 기본 인코딩(cp1252/cp949)에서는 한글 print가 UnicodeEncodeError로
+# 죽는다. 출력 스트림을 UTF-8로 바꿔 어떤 환경에서도 안전하게 출력한다.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 def run(sample_pdf: Path):
     tmp = Path(tempfile.mkdtemp())

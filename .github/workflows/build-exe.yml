@@ -21,6 +21,12 @@ jobs:
     # exe는 반드시 Windows에서 빌드해야 한다(PyInstaller는 크로스 컴파일 불가)
     runs-on: windows-latest
 
+    env:
+      # Windows 러너의 기본 stdout 인코딩은 cp1252라서 한글 출력이 깨진다.
+      # (코드에서도 stdout을 UTF-8로 재설정하지만, 여기서도 못박아 둔다)
+      PYTHONIOENCODING: "utf-8"
+      PYTHONUTF8: "1"
+
     steps:
       - name: 소스 체크아웃
         uses: actions/checkout@v4
