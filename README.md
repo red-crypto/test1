@@ -94,13 +94,42 @@ python test_core.py <샘플PDF경로>      # 세무사 포맷이 바뀌면 여�
 ```
 
 ### .exe 빌드
-```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed --name 급여명세서발송기 ^
-    --hidden-import win32timezone payroll_gui.py
+
+> ⚠️ **exe는 반드시 Windows에서 빌드해야 합니다.**
+> PyInstaller는 크로스 컴파일을 지원하지 않아, Linux/Mac에서 빌드하면
+> 해당 OS용 바이너리가 나옵니다. 게다가 이 앱은 `win32com`(Outlook)에 의존합니다.
+
+**방법 A — GitHub Actions에서 자동 빌드 (권장, 윈도우 PC 불필요)**
+
+이 저장소에 푸시하면 [`.github/workflows/build-exe.yml`](.github/workflows/build-exe.yml)이
+Windows 러너에서 자동으로 빌드합니다.
+
+1. GitHub 저장소 → **Actions** 탭 → **exe 빌드** 워크플로 선택
+2. 최신 실행 결과 클릭 → 하단 **Artifacts**에서 `급여명세서발송기-windows` 다운로드
+3. 압축을 풀면 `급여명세서발송기.exe` + `template.txt` + `mapping_예시.xlsx` + `README.md`
+
+수동 실행은 Actions 탭의 **Run workflow** 버튼으로도 가능합니다.
+
+**방법 B — 윈도우 PC에서 직접 빌드**
+
+[`빌드.bat`](빌드.bat)을 **더블클릭**하면 패키지 설치 → 로직 점검 → 빌드까지 자동 진행됩니다.
+결과물은 `dist\급여명세서발송기.exe`.
+
+직접 명령으로 하려면:
+```bat
+pip install -r requirements.txt pyinstaller
+pyinstaller --onefile --windowed --name PayrollSender ^
+    --hidden-import win32timezone --collect-data pdfminer payroll_gui.py
+ren dist\PayrollSender.exe 급여명세서발송기.exe
 ```
+- `--hidden-import win32timezone` : pywin32 빌드 시 누락되는 모듈
+- `--collect-data pdfminer` : pdfplumber가 쓰는 pdfminer cmap 데이터 포함
+- 빌드 이름을 ASCII(`PayrollSender`)로 잡고 나중에 바꾸는 이유는, PyInstaller에
+  비ASCII `--name`을 주면 환경에 따라 실패하는 경우가 있기 때문입니다.
+
 `config.json` / `template.txt` / `발송기록_*.csv`는 `sys.frozen` 여부에 따라
-**exe 옆 경로**에 저장됩니다.
+**exe 옆 경로**에 저장됩니다. 대표님 PC로는 **exe 하나만** 옮겨도 동작합니다
+(`template.txt`는 첫 실행 시 자동 생성).
 
 ### 검증된 파싱 패턴 (payroll_core.py)
 | 필드 | 정규식 |

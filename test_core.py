@@ -3,11 +3,14 @@
 핵심 로직 회귀 테스트 (유지보수용)
 
 실행:
-    pip install pdfplumber pandas openpyxl pypdf cryptography
-    python test_core.py <샘플PDF경로>
+    pip install -r requirements.txt
+    python test_core.py <샘플PDF경로>   # 전체 검사 (PDF 포함)
+    python test_core.py                # PDF 없이 가능한 검사만 (CI 스모크용)
 
 * 샘플 PDF 하나만 있으면 매칭/파싱/암호화/템플릿/명부검증/누락리포트/로그dedup
   전 경로를 자동 점검한다. (Outlook 발송은 Windows 전용이라 제외)
+* 샘플 PDF는 개인정보라 저장소에 두지 않는다(.gitignore). 그래서 CI에서는
+  인자 없이 실행해 'PDF가 필요 없는 검사'만 돌린다.
 * 세무사 포맷이 바뀌면 이 테스트부터 돌려 어디가 깨졌는지 확인할 것.
 """
 
@@ -105,8 +108,68 @@ def run(sample_pdf: Path):
     print(f"\n완료: {ok}개 통과.")
 
 
+def run_no_pdf():
+    """샘플 PDF 없이 돌릴 수 있는 검사만 수행 (CI 스모크 테스트용)."""
+    tmp = Path(tempfile.mkdtemp())
+    ok = fail = 0
+
+    def check(cond, label):
+        nonlocal ok, fail
+        print(("  PASS " if cond else "  FAIL ") + label)
+        if cond:
+            ok += 1
+        else:
+            fail += 1
+
+    print("의존 패키지 import")
+    check(pc.pd is not None, "pandas / pdfplumber / pypdf import 정상")
+
+    print("정규식 패턴 (실제 명세서 본문 형태로 검사)")
+    sample = ("2026년 07월분 임금명세서\n"
+              "성 명 :김도영 생년월일(사번) :930124(48) 지 급 일 :2026.07.31\n")
+    check(pc.RE_NAME.search(sample).group(1) == "김도영", "성명 추출")
+    m = pc.RE_BIRTH.search(sample)
+    check(m.group(1) == "930124" and m.group(2) == "48", "생년월일/괄호숫자 추출")
+    check(pc.RE_PAYDATE.search(sample).group(1) == "2026.07.31", "지급일 추출")
+    ym = pc.RE_MONTH.search(sample)
+    check(ym.group(1) + ym.group(2) == "202607", "귀속월 추출")
+
+    print("파일명 성명 추출")
+    check(pc.extract_name_from_filename(Path("임금명세서_김도영_.pdf")) == "김도영",
+          "규칙 파일명에서 이름 추출")
+
+    print("명부 검증")
+    bad = pd.DataFrame([
+        {"생년월일": "930124", "이름": "김도영", "이메일": "kdy@example.com"},
+        {"생년월일": "930124", "이름": "홍길동", "이메일": "badmail"},
+        {"생년월일": "12ab56", "이름": "", "이메일": ""},
+    ])
+    probs = pc.validate_mapping(bad)
+    check(any("중복" in p[2] for p in probs), "생년월일 중복 검출")
+    check(any("이메일" in p[2] for p in probs), "이메일 오류 검출")
+
+    print("템플릿 렌더링")
+    subj, body = pc.render_template(pc.DEFAULT_TEMPLATE, "김도영", "202607")
+    check("2026년 07월" in subj and "김도영" in body, "치환 정상")
+
+    print("로그 dedup")
+    pc.append_log(tmp, "202607", "김도영", "k@x.com", "a.pdf", pc.RESULT_SENT)
+    pc.append_log(tmp, "202607", "이몽룡", "t@x.com", "b.pdf", pc.RESULT_TEST)
+    check(pc.already_sent_files(tmp, "202607") == {"a.pdf"},
+          "실제 발송건만 재발송 방지 대상")
+
+    print("생년월일 마스킹 (로그에 전체 노출 금지)")
+    check(pc._mask_birth("930124") == "9301**", "마스킹 정상")
+
+    shutil.rmtree(tmp, ignore_errors=True)
+    print(f"\n완료: {ok}개 통과, {fail}개 실패.")
+    return fail == 0
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("사용법: python test_core.py <샘플PDF경로>")
-        sys.exit(1)
+        # CI 등 샘플 PDF가 없는 환경: PDF 불필요한 검사만
+        print("[샘플 PDF 없음] PDF가 필요 없는 검사만 실행합니다.")
+        print("전체 검사를 하려면: python test_core.py <샘플PDF경로>\n")
+        sys.exit(0 if run_no_pdf() else 1)
     run(Path(sys.argv[1]))

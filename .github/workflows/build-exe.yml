@@ -1,0 +1,83 @@
+# Windows 러너에서 급여명세서 발송기 exe를 자동으로 빌드한다.
+name: exe 빌드
+
+# 언제 도는가
+#  - 코드가 푸시될 때 자동
+#  - Actions 탭에서 'Run workflow' 버튼으로 수동 실행도 가능
+on:
+  push:
+    branches: ["claude/**", develop, main]
+    paths:
+      - "payroll_*.py"
+      - "requirements.txt"
+      - ".github/workflows/build-exe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # exe는 반드시 Windows에서 빌드해야 한다(PyInstaller는 크로스 컴파일 불가)
+    runs-on: windows-latest
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 의존 패키지 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 핵심 로직 스모크 테스트 (PDF 없이 가능한 검사)
+        run: python test_core.py
+
+      - name: exe 빌드
+        # --onefile   : 단일 실행파일
+        # --windowed  : 콘솔 창 숨김(GUI 전용)
+        # --hidden-import win32timezone : pywin32 빌드 시 누락되는 모듈
+        # --collect-data pdfminer       : pdfplumber가 쓰는 pdfminer cmap 데이터 포함
+        # 이름은 일단 ASCII로 빌드한 뒤 아래에서 한글로 바꾼다
+        #   (PyInstaller에 비ASCII --name을 주면 환경에 따라 실패하는 경우가 있음)
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name PayrollSender `
+            --hidden-import win32timezone `
+            --collect-data pdfminer `
+            payroll_gui.py
+
+      - name: 결과 확인 + 한글 이름으로 변경
+        shell: pwsh
+        run: |
+          $exe = "dist\PayrollSender.exe"
+          if (!(Test-Path $exe)) { throw "빌드 실패: $exe 가 생성되지 않았습니다." }
+          $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
+          Write-Host "빌드 성공: $exe ($sizeMB MB)"
+          Rename-Item $exe "급여명세서발송기.exe"
+          Get-ChildItem dist
+
+      - name: 배포용 파일 모으기
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item "dist\급여명세서발송기.exe" package\
+          Copy-Item template.txt        package\
+          Copy-Item mapping_예시.xlsx    package\
+          Copy-Item README.md           package\
+          Get-ChildItem package
+
+      - name: exe 업로드 (Actions 탭에서 다운로드)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 급여명세서발송기-windows
+          path: package/
+          retention-days: 30
+          if-no-files-found: error

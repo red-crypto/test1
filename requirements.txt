@@ -1,0 +1,12 @@
+# 급여명세서 발송기 실행/빌드에 필요한 패키지
+# 설치:  pip install -r requirements.txt
+#
+# 주의: pywin32는 Windows 전용입니다(Outlook COM 연동).
+#       Linux/Mac에서는 매칭·암호화 로직 테스트(test_core.py)만 가능합니다.
+
+pdfplumber>=0.11
+pypdf>=4.0
+pandas>=2.0
+openpyxl>=3.1
+cryptography>=42.0
+pywin32>=306 ; sys_platform == "win32"
