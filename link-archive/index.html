@@ -34,6 +34,7 @@
   --warn: #e5b04a; --warn-soft: #33290f; color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
 .wrap { max-width: 860px; margin: 0 auto; padding-block: 28px 64px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -85,6 +86,7 @@ details[open] > summary { margin-bottom: 8px; }
 .chip.dup { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
 .names { font-size: .88rem; color: var(--muted); }
 .names button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 1px 10px; margin: 3px 4px 0 0; cursor: pointer; font-size: .82rem; }
+.stray { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
 .mini { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
 .mini li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .86rem; display: flex; gap: 10px; min-width: 0; }
 .mini .d { font-family: var(--font-mono); color: var(--muted); font-size: .78rem; flex: none; padding-top: 2px; }
@@ -96,6 +98,43 @@ details[open] > summary { margin-bottom: 8px; }
 /* list */
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .toolbar .grow { flex: 1 1 200px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 7px 14px; cursor: pointer; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.map { position: relative; height: 72vh; min-height: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; touch-action: none; }
+.map svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; -webkit-user-select: none; }
+.map svg.drag { cursor: grabbing; }
+.map .edge { fill: none; stroke: var(--line); stroke-width: 1.4; }
+.map .edge.trunk { stroke-width: 2.2; }
+.map .edge.rel { stroke: var(--accent); stroke-dasharray: 5 4; stroke-width: 1.6; }
+.map .root circle { fill: var(--accent); }
+.map .root text { fill: #fff; font-weight: 700; font-size: 15px; }
+.map .grp { cursor: pointer; }
+.map .grp rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.map .grp.k-topic rect { stroke: var(--accent); }
+.map .grp.k-list rect { stroke: var(--warn); }
+.map .grp.open rect { fill: var(--accent-soft); }
+.map .grp text { fill: var(--ink); font-size: 14px; font-weight: 500; }
+.map .grp .cnt { fill: var(--muted); font-family: var(--font-mono); font-size: 12px; font-weight: 400; }
+.map .itm { cursor: pointer; }
+.map .itm text { fill: var(--ink); font-size: 12.5px; }
+.map .itm.read text { fill: var(--muted); }
+.map .itm .dotn { fill: var(--muted); }
+.map .itm.sel text { fill: var(--accent); font-weight: 700; }
+.map .itm.relh text { fill: var(--accent); }
+.map .itm rect.fr { fill: none; stroke: var(--line); }
+.map .itm.sel rect.fr { stroke: var(--accent); stroke-width: 2; }
+.map .simt { fill: var(--accent); font-family: var(--font-mono); font-size: 10px; }
+.mapctl { position: absolute; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: 10px; display: flex; gap: 4px; }
+.mapctl .btn { padding: 4px 10px; font-size: .85rem; }
+.maphint { position: absolute; left: 12px; top: 10px; font-size: .8rem; color: var(--muted); pointer-events: none; }
+.card { position: absolute; right: 10px; top: 10px; width: min(320px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; }
+.card .thumb { width: 100%; }
+.card .ct { font-weight: 700; font-size: .95rem; overflow-wrap: anywhere; }
+.card .row { gap: 6px; }
+.card .rel { grid-column: auto; padding: 8px; }
+.card .x { position: absolute; right: 6px; top: 4px; }
+@media (max-width: 560px) { .card { top: auto; bottom: 52px; max-height: 50%; } .map { height: 78vh; } }
 .month { font-size: .82rem; font-weight: 500; color: var(--muted); padding: 14px 0 6px; border-bottom: 1px solid var(--line); }
 .items { list-style: none; margin: 0; padding: 0; }
 .item { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 6px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
@@ -205,14 +244,30 @@ footer .sp { flex: 1; }
         <option value="rep">많이 올라온 순</option>
       </select>
       <label class="inline" for="unread"><input type="checkbox" id="unread"> 안 읽은 것만</label>
+      <div class="seg" role="group" aria-label="보기">
+        <button type="button" id="vList" aria-pressed="true">목록</button>
+        <button type="button" id="vMap" aria-pressed="false">마인드맵</button>
+      </div>
     </div>
     <div class="enrich" id="enrich" hidden></div>
     <div id="list"></div>
+    <div class="map" id="map" hidden>
+      <svg id="mapSvg" role="img" aria-label="링크 마인드맵"></svg>
+      <span class="maphint" id="mapHint">가지를 누르면 링크가 펼쳐집니다 · 끌어서 이동, 휠로 확대</span>
+      <div class="mapctl">
+        <button class="btn" type="button" id="mzIn" aria-label="확대">+</button>
+        <button class="btn" type="button" id="mzOut" aria-label="축소">−</button>
+        <button class="btn" type="button" id="mzFit">맞춤</button>
+        <button class="btn" type="button" id="mzAll">모두 펼치기</button>
+      </div>
+      <aside class="card" id="mapCard" hidden></aside>
+    </div>
   </section>
 
   <footer>
     <span id="foot"></span>
     <span class="sp"></span>
+    <button class="btn" id="tidy" type="button">목록 정리</button>
     <button class="btn" id="expCsv" type="button">CSV 내보내기</button>
     <button class="btn" id="expJson" type="button">백업(JSON)</button>
     <label class="btn" for="impJson">백업 불러오기</label>
@@ -236,11 +291,15 @@ const MAX_SEEN = 60, PAGE = 200;
 const DATE = String.raw`(\d{4})(?:년\s*|\.\s*)(\d{1,2})(?:월\s*|\.\s*)(\d{1,2})(?:일|\.)?`;
 const RE = {
   pcDay: /^-{3,}\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/,
-  pcMsg: /^\[([^\]]+)\]\s*\[(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})\s*(AM|PM)?\]\s?(.*)$/,
+  // 닉네임에 ] 가 들어가도(예: [서울]홍길동) 시간 괄호까지 보고 자른다
+  pcMsg: /^\[(.+?)\]\s*\[(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})\s*(AM|PM)?\]\s?(.*)$/,
   mobMsg: new RegExp('^' + DATE + String.raw`\s*,?\s*(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})(?:\s*(AM|PM))?\s*,\s*(.+?)\s:\s?(.*)$`),
   mobSys: new RegExp('^' + DATE + String.raw`\s*,?\s*(?:(?:오전|오후)\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}|[월화수목금토일]요일)`),
   csv: /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::\d{2})?,"((?:[^"]|"")*)","(.*)$/,
 };
+// PC 내보내기의 시스템 줄(시간·이름 없음). 앞 메시지 내용으로 붙으면 안 된다
+const SYS_RE = /^(?:.+님이 (?:들어왔습니다|나갔습니다|입장했습니다|퇴장했습니다)|.+님을 내보냈습니다|.+님이 .+님을 초대했습니다|.+님이 (?:방장|부방장).*|.*(?:방장|부방장)이 .+님(?:으로|에게).*|삭제된 메시지입니다|메시지가 삭제되었습니다|.*메시지를 가렸습니다|채팅방 관리자가 .+|운영정책을 위반한 메시지로 신고 접수 시.*|.+님과 카카오톡 대화|저장한 날짜\s*:.*)\.?$/;
+const JUNK_RE = /님이 (?:들어왔습니다|나갔습니다|입장했습니다|퇴장했습니다)|님을 내보냈습니다|삭제된 메시지입니다|메시지를 가렸습니다/;
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
 function hm(h, m, ap) {
@@ -275,7 +334,8 @@ function parseChat(text) {
       cur = { name: m[1].trim(), date: (day ? day + ' ' : '') + hm(m[3], m[4], m[2] || m[5]), text: m[6] };
       continue;
     }
-    if (RE.mobSys.test(line)) { flush(); continue; }  // 입장/퇴장 같은 시스템 줄, 날짜 구분선
+    if (RE.mobSys.test(line)) { flush(); continue; }  // 모바일의 입장/퇴장 줄, 날짜 구분선
+    if (SYS_RE.test(line.trim())) { flush(); continue; }  // PC의 입장/퇴장 줄: 다음 [이름] 줄까지 버림
     if (cur) cur.text += '\n' + line;
   }
   flush();
@@ -284,16 +344,20 @@ function parseChat(text) {
 
 /* ---------- 링크 추출 / 정규화 ---------- */
 const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"'`가-힣ㄱ-ㅎㅏ-ㅣ]+/gi;
-const TRACK = /^(utm_.*|fbclid|gclid|dclid|igshid|igsh|si|ref|ref_src|ref_url|spm|mc_cid|mc_eid|_ga|_gl|feature|share_id|ocid|cmpid|sid)$/i;
+const TRACK = /^(utm_.*|fbclid|gclid|dclid|igshid|igsh|si|ref|ref_src|ref_url|spm|mc_cid|mc_eid|_ga|_gl|feature|share_id|ocid|cmpid|sid|ad_id|rpxt|dlrf|mibextid|napm|srsltid|gad_source|share_source|share_medium|ttclid|twclid|trk|wt_mc)$/i;
+// 글 id 가 경로에 있어 쿼리가 전부 추적용인 사이트
+const NO_QUERY = /(^|\.)(instagram\.com|threads\.net|threads\.com|x\.com|twitter\.com|tiktok\.com|kickstarter\.com|reddit\.com|makerworld\.com|printables\.com|thingiverse\.com|cults3d\.com|aliexpress\.com|aliexpress\.us|github\.com)$/;
+const TRAIL = /[)\]}>.,!?;:'"”’。、]+$/;
 
-function extractUrls(text) {
+function urlMatches(text) {
   const out = [];
-  for (const raw of text.match(URL_RE) || []) {
-    const u = raw.replace(/[)\]}>.,!?;:'"”’。、]+$/, '');
-    if (u.length > 10) out.push(u);
+  for (const m of text.matchAll(URL_RE)) {
+    const url = m[0].replace(TRAIL, '');
+    if (url.length > 10) out.push({ url, start: m.index, end: m.index + url.length });
   }
   return out;
 }
+function extractUrls(text) { return urlMatches(text).map((m) => m.url); }
 
 function normUrl(raw) {
   let s = raw.trim();
@@ -312,7 +376,7 @@ function normUrl(raw) {
   }
   if (host === 'blog.naver.com' && p.get('blogId') && p.get('logNo')) return `blog.naver.com/${p.get('blogId')}/${p.get('logNo')}`;
   if (host === 'n.news.naver.com') path = path.replace(/^\/mnews\//, '/');
-  const keep = [...p.entries()].filter(([k]) => !TRACK.test(k)).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  const keep = NO_QUERY.test(host) ? [] : [...p.entries()].filter(([k]) => !TRACK.test(k)).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
   const q = new URLSearchParams(keep).toString();
   path = path.replace(/\/+$/, '').replace(/\/index\.(html?|php)$/i, '');
   return host + path + (q ? '?' + q : '');
@@ -335,8 +399,69 @@ function describe(text) {
   return text.replace(URL_RE, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
 }
 
+const BULLET = /^(?:[-*•·▶►→☞✔✅◆◇■□○●※>]+|\d{1,2}[.)])\s*/;
+function cleanLabel(s) {
+  return s.replace(/\s+/g, ' ').trim().replace(BULLET, '').replace(/[\s:：\-–—=>→]+$/, '').trim().slice(0, 120);
+}
+
+// 링크가 하나면 메시지 전체가 설명. 여러 개면(판매처 목록 등) 링크마다 바로 옆의 글만 설명으로
+//   이름↵링크↵이름↵링크   → 링크 위 줄 (이름 아래 링크가 연달아 있으면 같은 이름)
+//   링크 이름↵링크 이름    → 링크 뒤 글
+function linkLabels(text) {
+  const ms = urlMatches(text);
+  if (ms.length <= 1) return ms.map((m) => ({ url: m.url, desc: describe(text) }));
+  const lineStart = (i) => text.lastIndexOf('\n', i - 1) + 1;
+  const lineEnd = (i) => { const j = text.indexOf('\n', i); return j < 0 ? text.length : j; };
+  const parts = ms.map((m, i) => {
+    const prevEnd = i ? ms[i - 1].end : 0;
+    const nextStart = i + 1 < ms.length ? ms[i + 1].start : text.length;
+    const sameBefore = cleanLabel(text.slice(Math.max(prevEnd, lineStart(m.start)), m.start));
+    const sameAfter = cleanLabel(text.slice(m.end, Math.min(nextStart, lineEnd(m.end))));
+    const gapFrom = i ? Math.min(lineEnd(prevEnd), m.start) : 0;
+    const gap = text.slice(gapFrom, lineStart(m.start)).split('\n').map(cleanLabel).filter(Boolean);
+    return { sameBefore, sameAfter, prevLine: gap[gap.length - 1] || '' };
+  });
+  const afterMode = parts.filter((p) => p.sameAfter && !p.sameBefore).length > ms.length / 2;
+  let last = '';
+  return ms.map((m, i) => {
+    const p = parts[i];
+    let label = afterMode ? p.sameAfter : (p.sameBefore || p.prevLine || last);
+    last = label;
+    return { url: m.url, desc: label };
+  });
+}
+
+// 날짜가 같은 기록은 하나로(정규화 규칙이 바뀌어 키 뒷부분이 달라도 같은 게시)
+function mergeSeen(...lists) {
+  const byDate = new Map();
+  for (const list of lists) for (const k of list || []) { const d = k.split('|')[0]; if (!byDate.has(d)) byDate.set(d, k); }
+  return [...byDate.values()].sort().slice(-MAX_SEEN);
+}
+
 /* ---------- 저장소: claude db, 없으면 localStorage ---------- */
 const S = { items: new Map(), db: null, backend: 'pending', pending: null, ver: 0, open: new Set() };
+
+// 예전 정규화로 만든 id 도 지금 규칙으로 찾을 수 있게
+function findItem(id) {
+  const it = S.items.get(id);
+  if (it) return it;
+  if (!S.alias || S.alias.ver !== S.ver) {
+    const m = new Map();
+    for (const x of S.items.values()) { const a = hid(normUrl(x.url)); if (a !== x.id && !m.has(a)) m.set(a, x); }
+    S.alias = { ver: S.ver, m };
+  }
+  return S.alias.m.get(id);
+}
+// 3개 이상이 같은 설명이면 목록형 메시지에서 잘못 복사된 설명
+function descCounts() {
+  if (!S.dc || S.dc.ver !== S.ver) {
+    const m = new Map();
+    for (const x of S.items.values()) if (x.desc) m.set(x.desc, (m.get(x.desc) || 0) + 1);
+    S.dc = { ver: S.ver, m };
+  }
+  return S.dc.m;
+}
+const usableDesc = (it) => (it.desc && !JUNK_RE.test(it.desc) && (descCounts().get(it.desc) || 0) < 3 ? it.desc : '');
 
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
@@ -437,9 +562,10 @@ async function initStore() {
 }
 
 /* ---------- 썸네일·제목 가져오기 (로컬 서버 전용) ---------- */
-const embText = (it) => [it.title, it.summary, it.desc, slugTitle(it.norm)].filter(Boolean).join('\n');
+const embText = (it) => [it.title, it.summary, usableDesc(it), slugTitle(it.norm)].filter(Boolean).join('\n');
+const embFresh = (it) => it.emb && it.embSrc === hid(embText(it));
 function needsMeta(it) { return !it.fetched; }
-function needsEmb(it) { return S.server && S.server.ollama === 'ready' && (!it.emb || it.embModel !== S.server.model); }
+function needsEmb(it) { return S.server && S.server.ollama === 'ready' && (!embFresh(it) || it.embModel !== S.server.model); }
 
 async function enrichOne(it) {
   const patch = {};
@@ -455,8 +581,9 @@ async function enrichOne(it) {
   const next = { ...it, ...patch };
   if (needsEmb(next)) {
     try {
-      const r = await api('POST', '/api/embed', { text: embText(next) });
-      patch.emb = r.emb; patch.embModel = r.model;
+      const text = embText(next);
+      const r = await api('POST', '/api/embed', { text });
+      patch.emb = r.emb; patch.embModel = r.model; patch.embSrc = hid(text);
     } catch (e) {
       S.server.ollama = 'off';  // 한 번 실패하면 이번 실행에서는 임베딩을 건너뜀
     }
@@ -538,15 +665,15 @@ function buildIndex() {
   const df = new Map(), tf = new Map(), emb = new Map();
   for (const it of items) {
     const m = new Map();
-    for (const tk of tokens([it.title, it.summary, it.desc, slugTitle(it.norm)].filter(Boolean).join(' '))) m.set(tk, (m.get(tk) || 0) + 1);
+    for (const tk of tokens([it.title, it.summary, usableDesc(it), slugTitle(it.norm)].filter(Boolean).join(' '))) m.set(tk, (m.get(tk) || 0) + 1);
     tf.set(it.id, m);
     for (const k of m.keys()) df.set(k, (df.get(k) || 0) + 1);
-    if (it.emb) { try { emb.set(it.id, { model: it.embModel, v: decodeEmb(it.emb) }); } catch {} }
+    if (embFresh(it)) { try { emb.set(it.id, { model: it.embModel, v: decodeEmb(it.emb) }); } catch {} }
   }
-  const N = items.length, vec = new Map();
+  const N = items.length, vec = new Map(), common = Math.max(8, N * 0.15);
   for (const [id, m] of tf) {
     const v = new Map(); let s = 0;
-    for (const [k, c] of m) { const df_ = df.get(k); if (df_ < 2 && N > 3) continue; const w = (1 + Math.log(c)) * Math.log(1 + N / df_); v.set(k, w); s += w * w; }
+    for (const [k, c] of m) { const df_ = df.get(k); if ((df_ < 2 && N > 3) || df_ > common) continue; const w = (1 + Math.log(c)) * Math.log(1 + N / df_); v.set(k, w); s += w * w; }
     s = Math.sqrt(s) || 1;
     for (const k of v.keys()) v.set(k, v.get(k) / s);
     vec.set(id, v);
@@ -569,9 +696,11 @@ function related(id, k = 5) {
     } else if (t) {
       const t2 = ix.vec.get(it.id);
       const [a, b] = t.size < t2.size ? [t, t2] : [t2, t];
-      for (const [kk, w] of a) { const w2 = b.get(kk); if (w2) sim += w * w2; }
+      let hit = 0;
+      for (const [kk, w] of a) { const w2 = b.get(kk); if (w2) { sim += w * w2; hit++; } }
+      if (hit < 2) sim = 0;  // 조각 하나만 겹치는 우연한 일치는 제외
     }
-    if (sim >= (how === 'emb' ? 0.55 : 0.12)) out.push({ it, sim, how });
+    if (sim >= (how === 'emb' ? 0.6 : 0.15)) out.push({ it, sim, how });
   }
   return out.sort((a, b) => b.sim - a.sim).slice(0, k);
 }
@@ -582,7 +711,7 @@ const SITE_NAMES = {
   'thingiverse.com': 'Thingiverse', 'github.com': 'GitHub', 'smartstore.naver.com': '스마트스토어', 'blog.naver.com': '네이버 블로그',
   'cafe.naver.com': '네이버 카페', 'n.news.naver.com': '네이버 뉴스', 'wiki.bambulab.com': 'Bambu Wiki', 'bambulab.com': 'Bambu Lab',
   'docs.google.com': 'Google 문서', 'instagram.com': 'Instagram', 'aliexpress.com': 'AliExpress', 'coupang.com': '쿠팡',
-  'klipper3d.org': 'Klipper', 'prusa3d.com': 'Prusa', 'tistory.com': '티스토리',
+  'klipper3d.org': 'Klipper', 'github.io': 'GitHub', 'githubusercontent.com': 'GitHub', 'youtube.com': 'YouTube', 'prusa3d.com': 'Prusa', 'tistory.com': '티스토리',
 };
 function siteName(domain) {
   if (SITE_NAMES[domain]) return SITE_NAMES[domain];
@@ -593,20 +722,33 @@ function siteName(domain) {
   const core = parts.length > 2 && parts[parts.length - 2].length <= 3 ? parts[parts.length - 3] : parts[parts.length - 2] || domain;
   return core.charAt(0).toUpperCase() + core.slice(1);
 }
-const JUNK_SEG = /^(index|view|viewform|watch|article|articles|post|posts|models?|comments|ko|en|kr|p|v|d|e|s|r|wiki|manual|products?|item|items|detail|amp)$/i;
-// 제목을 못 가져왔을 때 주소의 마지막 의미 있는 조각으로 대신
+const JUNK_SEG = /^(index|view|viewform|watch|article|articles|post|posts|models?|comments|ko|en|kr|ja|zh|p|v|d|e|s|r|wiki|manual|products?|item|items|detail|amp|reel|reels|tv|shorts|tree|blob|main|master|tag|tags|display|status|share|forms)$/i;
+const VER_RE = /^v\d+[\w.-]*$|^\d+([._]\d+)+[\w.-]*$/i;
+// 제목을 못 가져왔을 때 주소 조각으로 이름 만들기
+//   wiki.snapmaker.com/en/snapmaker_orca/release_notes/v241 → snapmaker orca release notes v241
+//   github.com/OrcaSlicer/OrcaSlicer/releases/tag/v2.5.0     → OrcaSlicer releases v2.5.0
 function slugTitle(norm) {
-  const path = (norm || '').split('?')[0].split('/').slice(1);
-  let best = '';
+  const host = hostOf(norm || '');
+  let path = (norm || '').split('?')[0].split('/').slice(1).map((seg) => { try { return decodeURIComponent(seg); } catch { return seg; } });
+  if (host === 'github.com' && path.length >= 2) path = path.slice(1);  // 저장소 주인 이름은 뺌
+  let ver = '';
+  const segs = [];
   for (let seg of path) {
-    try { seg = decodeURIComponent(seg); } catch {}
     seg = seg.replace(/\.(html?|php|aspx?)$/i, '');
+    if (VER_RE.test(seg)) { ver = seg; continue; }
     if (seg.length < 3 || JUNK_SEG.test(seg) || /^[\d_-]+$/.test(seg)) continue;
-    if (/^[A-Za-z0-9_-]{16,}$/.test(seg) && !/[-_]/.test(seg.slice(1, -1))) continue;  // 해시 같은 id
-    const words = seg.replace(/^\d+[-_]/, '').replace(/[-_+]+/g, ' ').trim();
-    if (words.length >= 3 && (/[ ]/.test(words) || words.length > best.length || !best)) best = words;
+    if (!/[-_ ]/.test(seg) && seg.length >= 8 && /\d/.test(seg) && /[a-z]/.test(seg) && /[A-Z]/.test(seg)) continue;  // 대소문자·숫자 섞인 id
+    if (/^[A-Za-z0-9]{16,}$/.test(seg)) continue;
+    const w = seg.replace(/^\d+[-_]/, '').replace(/[-_+]+/g, ' ').trim();
+    if (w.length >= 3 && (!segs.length || segs[segs.length - 1].toLowerCase() !== w.toLowerCase())) segs.push(w);
   }
-  return best;
+  if (!segs.length) return '';
+  // 맨 뒤의 여러 단어 조각을 중심으로, 4단어가 안 되면 앞 조각을 붙임
+  let i = segs.length - 1;
+  for (let j = segs.length - 1; j >= 0; j--) if (segs[j].includes(' ')) { i = j; break; }
+  const out = [segs[i]];
+  for (let j = i - 1; j >= 0 && out.join(' ').split(' ').length < 4; j--) out.unshift(segs[j]);
+  return (out.join(' ') + (ver ? ' ' + ver : '')).slice(0, 90);
 }
 function hueOf(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360; }
 function thumbHtml(it) {
@@ -631,28 +773,44 @@ function analyze(text) {
     senders.set(m.name, (senders.get(m.name) || 0) + 1);
     if (!names.includes(m.name)) continue;
     mine++;
-    const urls = extractUrls(m.text);
-    if (!urls.length) continue;
-    const desc = describe(m.text);
-    for (const url of urls) {
+    const labels = linkLabels(m.text);
+    // 링크 3개 이상인 메시지(판매처 목록 등)는 한 묶음으로 기억해 마인드맵 가지로 쓴다
+    let grp = '', grpTitle = '';
+    if (labels.length >= 3) {
+      grp = m.date + '|' + m.name;
+      const head = cleanLabel(m.text.split('\n')[0].replace(URL_RE, ' '));
+      grpTitle = head && head !== labels[0].desc ? head : m.date.slice(0, 10) + ' 목록';
+    }
+    for (const { url, desc } of labels) {
       rawLinks++;
       const norm = normUrl(url);
       const id = hid(norm);
       let f = found.get(id);
-      if (!f) { f = { id, url, norm, domain: hostOf(norm), desc, seen: new Set() }; found.set(id, f); }
+      if (!f) { f = { id, url, norm, domain: hostOf(norm), desc, seen: new Set(), grp, grpTitle }; found.set(id, f); }
       if (!f.desc && desc) f.desc = desc;
+      if (!f.grp && grp) { f.grp = grp; f.grpTitle = grpTitle; }
       f.seen.add(m.date + '|' + norm);
     }
   }
-  const fresh = [], known = [];
+  const fresh = [], known = [], matched = new Set();
   for (const f of found.values()) {
-    const old = S.items.get(f.id);
+    const old = findItem(f.id);
     if (!old) { fresh.push(f); continue; }
-    const oldSeen = new Set(old.seen || []);
-    const add = [...f.seen].filter((k) => !oldSeen.has(k));
-    known.push({ f, old, add });
+    matched.add(old.id);
+    const oldDates = new Set((old.seen || []).map((k) => k.split('|')[0]));
+    const add = [...f.seen].filter((k) => !oldDates.has(k.split('|')[0]));
+    // 예전 파서가 붙인 엉뚱한 설명(입장 알림, 목록 전체)은 이번 분석 결과로 바꿈
+    const bad = old.desc && (JUNK_RE.test(old.desc) || (descCounts().get(old.desc) || 0) >= 3);
+    const desc = f.desc !== (old.desc || '') && (f.desc || bad) ? f.desc : null;
+    const grpNew = f.grp && f.grp !== old.grp ? f.grp : null;
+    known.push({ f, old, add, desc, grpNew });
   }
-  return { msgs: msgs.length, mine, rawLinks, found, fresh, known, senders };
+  // 이 파일 기간 안에만 기록이 있는데 이번에는 대상 메시지에서 안 나온 링크 → 다른 사람 링크가 섞였던 것
+  const dates = msgs.map((m) => m.date).filter((d) => /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(d)).sort();
+  const lo = dates[0], hi = dates[dates.length - 1];
+  const stray = !mine || !lo ? [] : [...S.items.values()].filter((it) => !matched.has(it.id) && it.src !== 'manual' &&
+    (it.seen || []).length && it.seen.every((k) => { const d = k.split('|')[0]; return d >= lo && d <= hi; }));
+  return { msgs: msgs.length, mine, rawLinks, found, fresh, known, senders, stray, range: [lo, hi] };
 }
 
 function firstLast(seenKeys) {
@@ -666,7 +824,8 @@ function showPreview(text, source) {
   const box = $('preview');
   box.hidden = false;
   const fileDup = r.rawLinks - r.found.size;
-  const knownWithNew = r.known.filter((k) => k.add.length).length;
+  const knownWithNew = r.known.filter((k) => k.add.length || k.desc !== null || k.grpNew).length;
+  const fixed = r.known.filter((k) => k.desc !== null).length;
   let html = `<div class="summary">
     <span class="chip">${esc(source)}</span>
     <span class="chip">메시지 ${n(r.msgs)}개</span>
@@ -674,6 +833,7 @@ function showPreview(text, source) {
     <span class="chip">링크 ${n(r.rawLinks)}개${fileDup ? ` (파일 안 중복 ${n(fileDup)})` : ''}</span>
     <span class="chip new">새 링크 ${n(r.fresh.length)}</span>
     <span class="chip dup">이미 있음 ${n(r.known.length)}</span>
+    ${fixed ? `<span class="chip">설명 고침 ${n(fixed)}</span>` : ''}
   </div>`;
   if (!r.msgs) {
     html += `<p class="names">카톡 내보내기 형식을 찾지 못했습니다. PC·안드로이드·아이폰의 "대화 내보내기" txt 파일인지 확인해 주세요.</p>`;
@@ -689,9 +849,16 @@ function showPreview(text, source) {
   }
   const work = r.fresh.length + knownWithNew;
   html += `<div class="row">
-    <button class="btn primary" id="savePending" type="button" ${work ? '' : 'disabled'}>${r.fresh.length ? `새 링크 ${n(r.fresh.length)}개 저장` : '저장할 새 링크 없음'}</button>
+    <button class="btn primary" id="savePending" type="button" ${work ? '' : 'disabled'}>${r.fresh.length ? `새 링크 ${n(r.fresh.length)}개 저장` : knownWithNew ? `기존 링크 ${n(knownWithNew)}개 갱신` : '저장할 새 링크 없음'}</button>
     <button class="btn ghost" id="cancelPending" type="button">닫기</button>
   </div>`;
+  if (r.stray.length) {
+    html += `<div class="stray"><strong>${esc(targets().join(', '))}이(가) 올리지 않은 것으로 보이는 기존 링크 ${n(r.stray.length)}개</strong>
+      <span class="names">${esc(r.range[0].slice(0, 10))} ~ ${esc(r.range[1].slice(0, 10))} 사이 대화에서 대상 메시지로 다시 잡히지 않았습니다. 예전 버전이 다른 사람 메시지를 붙여 넣었던 것입니다.</span>
+      <ul class="mini">${r.stray.slice(0, 60).map((it) => `<li><span class="d">${esc((it.first || '').slice(0, 10))}</span><span class="t">${esc(clip(it.title || it.desc || slugTitle(it.norm) || it.norm, 100))}</span></li>`).join('')}
+        ${r.stray.length > 60 ? `<li><span class="t">… 외 ${n(r.stray.length - 60)}개</span></li>` : ''}</ul>
+      <div class="row"><button class="btn" id="delStray" type="button">${n(r.stray.length)}개 삭제</button></div></div>`;
+  }
   box.innerHTML = html;
   S.lastText = text; S.lastSource = source;
 }
@@ -706,13 +873,13 @@ async function savePending() {
   for (const f of r.fresh) {
     const seen = [...f.seen].sort().slice(-MAX_SEEN);
     const [first, last] = firstLast(seen);
-    jobs.push({ id: f.id, url: f.url, norm: f.norm, domain: f.domain, desc: f.desc, first, last, seen, read: false, added: now });
+    jobs.push({ id: f.id, url: f.url, norm: f.norm, domain: f.domain, desc: f.desc, first, last, seen, read: false, added: now, ...(f.grp ? { grp: f.grp, grpTitle: f.grpTitle } : {}) });
   }
   for (const k of r.known) {
-    if (!k.add.length) continue;
-    const seen = [...new Set([...(k.old.seen || []), ...k.add])].sort().slice(-MAX_SEEN);
+    if (!k.add.length && k.desc === null && !k.grpNew) continue;
+    const seen = mergeSeen(k.old.seen, k.add);
     const [first, last] = firstLast(seen);
-    jobs.push({ ...k.old, seen, first: k.old.first && k.old.first < first ? k.old.first : first, last, desc: k.old.desc || k.f.desc });
+    jobs.push({ ...k.old, seen, first, last, desc: k.desc !== null ? k.desc : (k.old.desc || k.f.desc), ...(k.grpNew ? { grp: k.f.grp, grpTitle: k.f.grpTitle } : {}) });
   }
   let done = 0;
   try {
@@ -727,7 +894,7 @@ async function savePending() {
     S.pending = null;
     $('preview').hidden = true;
     render();
-    runEnrich(new Set(r.fresh.map((f) => f.id)));
+    runEnrich(new Set(jobs.map((j) => j.id)));
   } catch (e) {
     persist();
     btn.disabled = false;
@@ -737,6 +904,70 @@ async function savePending() {
   }
 }
 
+async function deleteMany(ids, label) {
+  let done = 0;
+  try { for (const id of ids) { await delItem(id); done++; } }
+  catch { toast(`${done}/${ids.length}개 삭제 후 멈췄습니다. 다시 눌러 주세요.`); render(); return false; }
+  persist(); render();
+  toast(`${label} ${done}개 삭제했습니다`);
+  return true;
+}
+
+/* ---------- 목록 정리: 주소 규칙 변경으로 생긴 중복 합치기, 입장 알림 섞인 설명 지우기 ---------- */
+function tidyPlan() {
+  const groups = new Map();
+  for (const it of S.items.values()) {
+    const key = hid(normUrl(it.url));
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  }
+  const merges = [...groups.values()].filter((g) => g.length > 1)
+    .map((g) => g.sort((a, b) => (a.first || '').localeCompare(b.first || '')));
+  const junk = [...S.items.values()].filter((it) => it.desc && JUNK_RE.test(it.desc));
+  const shared = [...S.items.values()].filter((it) => it.desc && (descCounts().get(it.desc) || 0) >= 3).length;
+  return { merges, junk, shared };
+}
+function showTidy() {
+  const t = tidyPlan();
+  S.tidy = t;
+  const box = $('preview');
+  box.hidden = false;
+  const dup = t.merges.reduce((s, g) => s + g.length - 1, 0);
+  box.innerHTML = `<div class="summary"><span class="chip">목록 정리</span>
+      <span class="chip ${dup ? 'dup' : ''}">합칠 중복 ${n(dup)}개</span>
+      <span class="chip ${t.junk.length ? 'dup' : ''}">입장·퇴장 알림이 섞인 설명 ${n(t.junk.length)}개</span></div>
+    ${t.merges.length ? `<ul class="mini">${t.merges.slice(0, 40).map((g) => `<li><span class="d">${g.length}개→1</span><span class="t">${esc(g[0].norm)}</span></li>`).join('')}</ul>` : ''}
+    ${t.shared ? `<p class="names">목록형 메시지에서 같은 설명이 복사된 링크가 ${n(t.shared)}개 있습니다. 이건 원래 메시지가 필요해서, 카톡 파일을 위에 다시 넣으면 링크마다 제 이름으로 고쳐집니다.</p>` : ''}
+    <div class="row"><button class="btn primary" id="runTidy" type="button" ${dup || t.junk.length ? '' : 'disabled'}>정리하기</button>
+    <button class="btn ghost" id="cancelPending" type="button">닫기</button></div>`;
+}
+async function runTidy() {
+  const t = S.tidy;
+  if (!t) return;
+  $('runTidy').disabled = true;
+  try {
+    for (const g of t.merges) {
+      const [keep, ...rest] = g;
+      const seen = mergeSeen(...g.map((x) => x.seen));
+      const [first, last] = firstLast(seen);
+      const merged = { ...keep, seen, first, last, norm: normUrl(keep.url), read: g.some((x) => x.read) };
+      for (const k of ['title', 'summary', 'site', 'thumb', 'fetched', 'desc']) if (!merged[k]) { const src = rest.find((x) => x[k]); if (src) merged[k] = src[k]; }
+      await putItem(merged);
+      for (const x of rest) await delItem(x.id);
+    }
+    for (const it of t.junk) {
+      if (!S.items.has(it.id)) continue;
+      const desc = it.desc.split(/(?<=[.!?])\s+/).filter((x) => !JUNK_RE.test(x)).join(' ').trim();
+      await patchItem(it.id, { desc });
+    }
+    persist();
+    toast('정리했습니다');
+  } catch { toast('정리하다 멈췄습니다. 다시 눌러 주세요.'); }
+  S.tidy = null;
+  $('preview').hidden = true;
+  render();
+}
+
 /* ---------- 빠른 확인 ---------- */
 function quickCheck() {
   const v = $('quick').value.trim();
@@ -744,7 +975,7 @@ function quickCheck() {
   if (!v) { out.innerHTML = ''; return; }
   const url = extractUrls(v)[0] || v;
   const norm = normUrl(url);
-  const it = S.items.get(hid(norm));
+  const it = findItem(hid(norm));
   if (it) {
     out.innerHTML = `<span class="chip dup">이미 있음</span><span>${esc(it.first ? it.first.slice(0, 10) + ' 처음 올라옴' : '')}${(it.seen || []).length > 1 ? ` · ${it.seen.length}번 올라옴` : ''}</span><button class="btn ghost" type="button" data-goto="${it.id}">목록에서 보기</button>`;
   } else {
@@ -756,12 +987,12 @@ async function quickAdd() {
   const url = extractUrls(v)[0] || v;
   const norm = normUrl(url);
   const id = hid(norm);
-  if (S.items.has(id)) return quickCheck();
+  if (findItem(id)) return quickCheck();
   const d = new Date();
   const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const desc = describe(v);
   try {
-    await putItem({ id, url: /^https?:/i.test(url) ? url : 'https://' + url, norm, domain: hostOf(norm), desc, first: date, last: date, seen: [date + '|' + norm], read: false, added: d.toISOString() });
+    await putItem({ id, url: /^https?:/i.test(url) ? url : 'https://' + url, norm, domain: hostOf(norm), desc, first: date, last: date, seen: [date + '|' + norm], read: false, added: d.toISOString(), src: 'manual' });
     persist();
     $('quick').value = '';
     S.flash = new Set([id]);
@@ -795,6 +1026,10 @@ function render() {
   domSel.value = counts.has(curDom) ? curDom : '';
 
   const list = $('list');
+  const asMap = S.view === 'map';
+  $('vList').setAttribute('aria-pressed', String(!asMap));
+  $('vMap').setAttribute('aria-pressed', String(asMap));
+  list.hidden = false; $('map').hidden = true;
   if (S.backend === 'pending' || (S.backend === 'db' && !S.loaded)) { list.innerHTML = `<div class="empty">저장된 링크를 불러오는 중입니다…</div>`; return; }
   if (!all.length) {
     list.innerHTML = `<div class="empty"><strong>아직 모은 링크가 없습니다.</strong>
@@ -815,6 +1050,7 @@ function render() {
   else rows.sort((a, b) => byDate(b, a));
 
   if (!rows.length) { list.innerHTML = `<div class="empty">조건에 맞는 링크가 없습니다.</div>`; return; }
+  if (asMap) { list.hidden = true; $('map').hidden = false; list.innerHTML = ''; renderMap(rows); S.flash = null; return; }
 
   let html = '', month = null;
   for (const i of rows.slice(0, shown)) {
@@ -825,8 +1061,8 @@ function render() {
       html += `<div class="month">${mo ? mo.replace('-', '년 ') + '월' : '날짜 없음'}</div><ul class="items">`;
     } else if (month === null && html === '') html += '<ul class="items">';
     const rep = (i.seen || []).length;
-    const title = i.title || i.desc || slugTitle(i.norm) || i.norm;
-    const kakao = i.title && i.desc && i.desc !== i.title ? i.desc : '';
+    const title = itemName(i);
+    const kakao = i.title && usableDesc(i) && i.desc !== i.title ? i.desc : '';
     const path = i.norm.slice(i.domain.length) || '/';
     const site = i.site || siteName(i.domain);
     const open = S.open.has(i.id);
@@ -834,7 +1070,7 @@ function render() {
     if (open) {
       const rs = related(i.id);
       relHtml = `<div class="rel"><h3>관련 자료 ${rs.length ? (rs[0].how === 'emb' ? '· 의미 비교' : '· 글자 비교') : ''}</h3>` +
-        (rs.length ? rs.map((r) => `<a href="#it-${r.it.id}" data-jump="${r.it.id}"><span class="thumb">${thumbHtml(r.it)}</span><span class="rt">${esc(clip(r.it.title || r.it.desc || slugTitle(r.it.norm) || r.it.norm, 90))}</span><span class="sim">${Math.round(r.sim * 100)}%</span></a>`).join('')
+        (rs.length ? rs.map((r) => `<a href="#it-${r.it.id}" data-jump="${r.it.id}"><span class="thumb">${thumbHtml(r.it)}</span><span class="rt">${esc(clip(itemName(r.it), 90))}</span><span class="sim">${Math.round(r.sim * 100)}%</span></a>`).join('')
           : `<span style="font-size:.86rem;color:var(--muted)">비슷한 링크를 찾지 못했습니다.${i.title ? '' : ' 제목을 가져오면 더 잘 찾습니다.'}</span>`) + '</div>';
     }
     html += `<li class="item${i.read ? ' read' : ''}${S.flash && S.flash.has(i.id) ? ' flash' : ''}" id="it-${i.id}">
@@ -858,6 +1094,309 @@ function render() {
   if (rows.length > shown) html += `<button class="btn more" type="button" id="more">${n(rows.length - shown)}개 더 보기</button>`;
   list.innerHTML = html;
   S.flash = null;
+}
+
+/* ---------- 마인드맵 ---------- */
+// 가운데 = 올린 사람, 1단계 = 묶음(목록형 메시지 / 주제 / 사이트 / 기타), 2단계 = 링크
+const STOPW = new Set(['the', 'and', 'for', 'with', 'this', 'that', 'from', 'your', 'you', 'are', 'how', 'new', 'what', 'why', 'all', 'can', 'out',
+  'html', 'http', 'https', 'www', 'com', 'net', 'org', 'reel', 'reels', 'watch', 'shorts', 'post', 'posts', 'comments', 'models', 'model', 'store', 'products',
+  '이거', '그냥', '진짜', '오늘', '정리', '공유', '영상', '링크', '이런', '저런', '그런', '있는', '하는', '없는', '같은', '좋은', '이번', '여기', '보면', '있습니다', '합니다']);
+const KSUFFIX = /(에서|으로|하는|해서|했다|합니다|입니다|이다|이랑|을|를|이|가|은|는|의|에|로|와|과|도|만)$/;
+function words(text) {
+  const out = new Set();
+  for (let w of (text || '').toLowerCase().match(/[a-z][a-z0-9+]{2,}|[가-힣]{2,}|\d+[a-z]+/g) || []) {
+    if (/^[가-힣]/.test(w) && w.length > 2) w = w.replace(KSUFFIX, '');
+    if (w.length >= 2 && !STOPW.has(w)) out.add(w);
+  }
+  return [...out];
+}
+const itemText = (it) => [it.title, it.summary, usableDesc(it), slugTitle(it.norm)].filter(Boolean).join(' ');
+const itemName = (it) => it.title || usableDesc(it) || slugTitle(it.norm) || `${siteName(it.domain)} · ${(it.first || '').slice(5, 10).replace('-', '.')}`;
+
+function buildGroups(rows) {
+  const sig = S.ver + '|' + rows.length + '|' + (rows[0] && rows[0].id) + '|' + (rows[rows.length - 1] && rows[rows.length - 1].id);
+  if (S.groups && S.groups.sig === sig) return S.groups.list;
+  const ids = new Set(rows.map((r) => r.id));
+  const taken = new Set(), groups = [];
+  const take = (g) => { g.items.forEach((it) => taken.add(it.id)); groups.push(g); };
+
+  // 1) 목록형 메시지(링크 3개 이상 한 번에 올린 것)
+  const lists = new Map();
+  for (const it of rows) {
+    const legacy = (descCounts().get(it.desc) || 0) >= 3 ? 'd:' + it.desc : '';
+    const k = it.grp || legacy;
+    if (!k) continue;
+    if (!lists.has(k)) lists.set(k, { key: 'L:' + k, kind: 'list', items: [], label: it.grpTitle || `${(it.first || '').slice(0, 10)} 목록` });
+    lists.get(k).items.push(it);
+  }
+  for (const g of lists.values()) if (g.items.length >= 3) take(g);
+
+  // 2) 주제: 관련 자료가 많은 링크를 중심으로 이웃을 모음
+  const rest = rows.filter((it) => !taken.has(it.id));
+  const nb = new Map(rest.map((it) => [it.id, related(it.id, 10).filter((x) => ids.has(x.it.id) && !taken.has(x.it.id))]));
+  const seeds = rest.slice().sort((a, b) => nb.get(b.id).length - nb.get(a.id).length);
+  for (const seed of seeds) {
+    if (taken.has(seed.id)) continue;
+    const mem = [seed, ...nb.get(seed.id).map((x) => x.it).filter((it) => !taken.has(it.id))];
+    if (mem.length >= 3) take({ key: 'T:' + seed.id, kind: 'topic', items: mem });
+  }
+  // 묶음에 못 든 링크는 가장 가까운 이웃이 속한 주제로
+  const topicOf = new Map();
+  for (const g of groups) if (g.kind === 'topic') g.items.forEach((it) => topicOf.set(it.id, g));
+  for (const it of rows) {
+    if (taken.has(it.id)) continue;
+    const best = (nb.get(it.id) || []).find((x) => topicOf.has(x.it.id));
+    if (best) { topicOf.get(best.it.id).items.push(it); taken.add(it.id); }
+  }
+
+  // 3) 나머지는 사이트별, 작은 건 기타
+  const sites = new Map();
+  for (const it of rows) {
+    if (taken.has(it.id)) continue;
+    const nm = siteName(it.domain);
+    if (!sites.has(nm)) sites.set(nm, { key: 'S:' + nm, kind: 'site', items: [], label: nm });
+    sites.get(nm).items.push(it);
+  }
+  const etc = { key: 'E', kind: 'site', items: [], label: '기타' };
+  for (const g of sites.values()) (g.items.length >= 3 ? groups.push(g) : etc.items.push(...g.items));
+  if (etc.items.length) groups.push(etc);
+
+  // 주제 이름: 묶음 안에서 자주 나오고 전체에선 드문 단어 두 개
+  const df = new Map();
+  const wordsOf = new Map(rows.map((it) => [it.id, words(itemText(it))]));
+  for (const ws of wordsOf.values()) for (const w of ws) df.set(w, (df.get(w) || 0) + 1);
+  for (const g of groups) {
+    if (g.kind !== 'topic') continue;
+    const cnt = new Map();
+    for (const it of g.items) for (const w of wordsOf.get(it.id)) cnt.set(w, (cnt.get(w) || 0) + 1);
+    const top = [...cnt.entries()].filter(([, c]) => c >= 2)
+      .map(([w, c]) => [w, c * Math.log(1 + rows.length / df.get(w))]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([w]) => w);
+    g.label = top.length ? top.join(' · ') : clip(itemName(g.items[0]), 18);
+  }
+  const order = { topic: 0, list: 1, site: 2 };
+  groups.sort((a, b) => order[a.kind] - order[b.kind] || (a.key === 'E') - (b.key === 'E') || b.items.length - a.items.length);
+  S.groups = { sig, list: groups };
+  return groups;
+}
+
+const M = { vb: null, open: new Set(), sel: null, pos: new Map() };
+function layoutMap(groups) {
+  const nodes = [], edges = [];
+  M.pos = new Map();
+  const pill = (g) => textW(clip(g.label, 22), 14) + textW(String(g.items.length), 12) + 46;
+  const totalW = groups.reduce((a, g) => a + pill(g), 0);
+  const stagger = groups.length > 12;
+  const R1 = Math.max(170, (totalW / (2 * Math.PI)) * (stagger ? 0.6 : 1.05));
+  // 각도는 라벨 폭만큼, 펼친 가지는 링크 수만큼 더
+  const w = groups.map((g) => (M.open.has(g.key) ? Math.max(pill(g) * 2.5, Math.sqrt(g.items.length) * 70) : pill(g)));
+  const tot = w.reduce((a, b) => a + b, 0) || 1;
+  let acc = 0;
+  groups.forEach((g, i) => {
+    const span = (w[i] / tot) * Math.PI * 2;
+    const ang = acc + span / 2 - Math.PI / 2;
+    acc += span;
+    const gr = stagger && i % 2 ? R1 + 60 + 70 * Math.abs(Math.cos(ang)) : R1;  // 좌우는 라벨이 길어 더 벌림
+    const gx = Math.cos(ang) * gr, gy = Math.sin(ang) * gr;
+    nodes.push({ t: 'g', g, x: gx, y: gy, ang });
+    M.pos.set(g.key, [gx, gy]);
+    edges.push({ k: 'trunk', a: [0, 0], b: [gx, gy] });
+    if (!M.open.has(g.key)) return;
+    const items = g.items.slice().sort((a, b) => (b.first || '').localeCompare(a.first || ''));
+    const spread = Math.min(span * 0.92, 2.2);
+    let idx = 0, ring = 0;
+    while (idx < items.length) {
+      const r = gr + 130 + ring * 64;
+      const cap = Math.max(1, Math.floor((spread * r) / 28));
+      const cnt = Math.min(cap, items.length - idx);
+      const use = Math.min(spread, (cnt * 28) / r);
+      for (let k = 0; k < cnt; k++) {
+        const a = ang + (cnt === 1 ? 0 : (k / (cnt - 1) - 0.5) * use);
+        const it = items[idx + k];
+        const x = Math.cos(a) * r, y = Math.sin(a) * r;
+        nodes.push({ t: 'i', it, x, y, a, g, gk: g.key });
+        M.pos.set(it.id, [x, y]);
+        edges.push({ k: 'leaf', a: [gx, gy], b: [x, y] });
+      }
+      idx += cnt; ring++;
+    }
+  });
+  return { nodes, edges };
+}
+
+const curve = (a, b) => { const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; return `M${a[0].toFixed(1)},${a[1].toFixed(1)} Q${(mx * 0.92).toFixed(1)},${(my * 0.92).toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}`; };
+function textW(s, px) { let w = 0; for (const ch of s) w += /[가-힣ㄱ-ㅎ一-龥]/.test(ch) ? px : px * 0.58; return w; }
+
+function renderMap(rows) {
+  const groups = buildGroups(rows);
+  const valid = new Set(groups.map((g) => g.key));
+  for (const k of [...M.open]) if (!valid.has(k)) M.open.delete(k);
+  const { nodes, edges } = layoutMap(groups);
+  const root = esc(targets()[0] || '전체');
+  let svg = '<g id="mapG">';
+  for (const e of edges) svg += `<path class="edge ${e.k}" d="${curve(e.a, e.b)}"/>`;
+  // 선택한 링크의 관련 자료 → 점선 (접힌 가지면 가지로)
+  const relSet = new Set();
+  if (M.sel && M.pos.has(M.sel)) {
+    for (const r of related(M.sel, 6)) {
+      const g = groups.find((gg) => gg.items.some((x) => x.id === r.it.id));
+      const to = M.pos.get(r.it.id) || (g && M.pos.get(g.key));
+      if (!to) continue;
+      relSet.add(r.it.id);
+      const from = M.pos.get(M.sel);
+      svg += `<path class="edge rel" d="M${from[0].toFixed(1)},${from[1].toFixed(1)} Q0,0 ${to[0].toFixed(1)},${to[1].toFixed(1)}"/>`;
+      svg += `<text class="simt" x="${((from[0] + to[0]) / 4).toFixed(1)}" y="${((from[1] + to[1]) / 4).toFixed(1)}">${Math.round(r.sim * 100)}%</text>`;
+    }
+  }
+  svg += `<g class="root"><circle r="${Math.max(34, textW(root, 15) / 2 + 14)}"/><text text-anchor="middle" dy="5">${root}</text></g>`;
+  for (const nd of nodes) {
+    if (nd.t === 'g') {
+      const label = clip(nd.g.label, 22), cnt = String(nd.g.items.length);
+      const wpx = textW(label, 14) + textW(cnt, 12) + 32;
+      svg += `<g class="grp k-${nd.g.kind}${M.open.has(nd.g.key) ? ' open' : ''}" data-g="${esc(nd.g.key)}" transform="translate(${nd.x.toFixed(1)},${nd.y.toFixed(1)})">
+        <rect x="${(-wpx / 2).toFixed(1)}" y="-16" width="${wpx.toFixed(1)}" height="32" rx="16"/>
+        <text x="${(-wpx / 2 + 13).toFixed(1)}" dy="5">${esc(label)} <tspan class="cnt">${cnt}</tspan></text></g>`;
+    } else {
+      const it = nd.it, right = Math.cos(nd.a) >= 0;
+      const name = esc(clip(itemName(it), 30));
+      const mark = it.thumb
+        ? `<image href="${esc(it.thumb)}" x="-15" y="-10" width="30" height="20" preserveAspectRatio="xMidYMid slice"/><rect class="fr" x="-15" y="-10" width="30" height="20" rx="2"/>`
+        : `<circle class="dotn" r="4.5"/>`;
+      const tx = it.thumb ? 19 : 9;
+      svg += `<g class="itm${it.read ? ' read' : ''}${M.sel === it.id ? ' sel' : ''}${relSet.has(it.id) ? ' relh' : ''}" data-i="${it.id}" transform="translate(${nd.x.toFixed(1)},${nd.y.toFixed(1)})">
+        ${mark}<text x="${right ? tx : -tx}" dy="4" text-anchor="${right ? 'start' : 'end'}">${name}</text><title>${esc(itemName(it))}</title></g>`;
+    }
+  }
+  svg += '</g>';
+  const el = $('mapSvg');
+  el.innerHTML = svg;
+  if (!M.vb) fitMap();
+  else applyVb();
+  $('mapHint').hidden = M.open.size > 0;
+  renderCard();
+}
+
+// 펼친 가지와 그 링크들이 화면에 들어오게: 들어가면 이동만, 넘치면 축소
+function focusGroup(key) {
+  const g = S.groups && S.groups.list.find((x) => x.key === key);
+  if (!g || !M.vb) return;
+  const pts = [M.pos.get(key), ...g.items.map((it) => M.pos.get(it.id))].filter(Boolean);
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const pad = 170;
+  const bx = Math.min(...xs) - pad, by = Math.min(...ys) - 40, bw = Math.max(...xs) - Math.min(...xs) + pad * 2, bh = Math.max(...ys) - Math.min(...ys) + 80;
+  const ar = M.vb.w / M.vb.h;
+  let w = Math.max(M.vb.w, bw, bh * ar);
+  const h = w / ar;
+  M.vb = { x: bx + bw / 2 - w / 2, y: by + bh / 2 - h / 2, w, h };
+  applyVb();
+}
+
+function fitMap() {
+  const g = $('mapG');
+  if (!g) return;
+  const bb = g.getBBox();
+  const pad = 40;
+  const box = $('map').getBoundingClientRect();
+  const ar = box.width && box.height ? box.width / box.height : 1.6;
+  let w = bb.width + pad * 2, h = bb.height + pad * 2;
+  if (w / h < ar) w = h * ar; else h = w / ar;
+  M.vb = { x: bb.x + bb.width / 2 - w / 2, y: bb.y + bb.height / 2 - h / 2, w, h };
+  applyVb();
+}
+function applyVb() { const v = M.vb; $('mapSvg').setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`); }
+function zoomMap(f, cx, cy) {
+  const v = M.vb;
+  if (cx === undefined) { cx = v.x + v.w / 2; cy = v.y + v.h / 2; }
+  const w = Math.min(Math.max(v.w * f, 120), 20000), k = w / v.w;
+  M.vb = { x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k, w, h: v.h * k };
+  applyVb();
+}
+function svgPoint(evt) {
+  const r = $('mapSvg').getBoundingClientRect(), v = M.vb;
+  return [v.x + ((evt.clientX - r.left) / r.width) * v.w, v.y + ((evt.clientY - r.top) / r.height) * v.h];
+}
+
+function renderCard() {
+  const card = $('mapCard');
+  const it = M.sel && S.items.get(M.sel);
+  if (!it) { card.hidden = true; return; }
+  card.hidden = false;
+  const rs = related(it.id, 6);
+  card.innerHTML = `<button class="btn ghost x" type="button" data-close="1" aria-label="닫기">✕</button>
+    <span class="thumb">${thumbHtml(it)}</span>
+    <span class="ct">${esc(clip(itemName(it), 120))}</span>
+    ${it.summary ? `<span class="sum" style="color:var(--muted)">${esc(it.summary)}</span>` : ''}
+    ${it.title && usableDesc(it) && it.desc !== it.title ? `<span class="kakao">${esc(it.desc)}</span>` : ''}
+    <span class="meta" style="font-family:var(--font-mono);font-size:.76rem;color:var(--muted)">${esc((it.first || '').slice(0, 10))} · ${esc(it.site || siteName(it.domain))}${(it.seen || []).length > 1 ? ` · ${it.seen.length}번 올라옴` : ''}</span>
+    <div class="row"><a class="btn primary" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" data-open="${it.id}">열기</a>
+      <button class="btn" type="button" data-tolist="${it.id}">목록에서 보기</button></div>
+    <div class="rel"><h3>관련 자료${rs.length ? (rs[0].how === 'emb' ? ' · 의미 비교' : ' · 글자 비교') : ''}</h3>
+      ${rs.length ? rs.map((r) => `<a href="#" data-pick="${r.it.id}"><span class="thumb">${thumbHtml(r.it)}</span><span class="rt">${esc(clip(itemName(r.it), 60))}</span><span class="sim">${Math.round(r.sim * 100)}%</span></a>`).join('')
+        : '<span style="color:var(--muted)">비슷한 링크를 찾지 못했습니다.</span>'}</div>`;
+}
+
+function pickOnMap(id) {
+  M.sel = id;
+  const g = S.groups && S.groups.list.find((gg) => gg.items.some((x) => x.id === id));
+  if (g) M.open.add(g.key);
+  render();
+  if (g) focusGroup(g.key);
+}
+
+(() => {
+  const svg = $('mapSvg');
+  let drag = null, moved = false;
+  svg.addEventListener('pointerdown', (e) => {
+    drag = { x: e.clientX, y: e.clientY, vb: { ...M.vb } }; moved = false;
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag || !M.vb) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!moved && Math.hypot(dx, dy) < 4) return;
+    moved = true; svg.classList.add('drag');
+    const r = svg.getBoundingClientRect();
+    M.vb = { ...drag.vb, x: drag.vb.x - (dx / r.width) * drag.vb.w, y: drag.vb.y - (dy / r.height) * drag.vb.h };
+    applyVb();
+  });
+  svg.addEventListener('pointerup', (e) => {
+    svg.classList.remove('drag');
+    const wasDrag = moved; drag = null;
+    if (wasDrag) return;
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    const g = t && t.closest('[data-g]'), i = t && t.closest('[data-i]');
+    if (g) {
+      const k = g.dataset.g;
+      if (M.open.has(k)) { M.open.delete(k); render(); }
+      else { M.open.add(k); render(); focusGroup(k); }
+    }
+    else if (i) { M.sel = M.sel === i.dataset.i ? null : i.dataset.i; render(); }
+    else if (M.sel) { M.sel = null; render(); }
+  });
+  svg.addEventListener('wheel', (e) => { if (!M.vb) return; e.preventDefault(); const [cx, cy] = svgPoint(e); zoomMap(e.deltaY > 0 ? 1.15 : 1 / 1.15, cx, cy); }, { passive: false });
+  $('mzIn').addEventListener('click', () => zoomMap(1 / 1.3));
+  $('mzOut').addEventListener('click', () => zoomMap(1.3));
+  $('mzFit').addEventListener('click', () => { M.vb = null; render(); });
+  $('mzAll').addEventListener('click', () => {
+    const all = S.groups ? S.groups.list.map((g) => g.key) : [];
+    if (M.open.size >= all.length) M.open.clear(); else all.forEach((k) => M.open.add(k));
+    M.vb = null; render();
+    $('mzAll').textContent = M.open.size ? '모두 접기' : '모두 펼치기';
+  });
+  $('mapCard').addEventListener('click', (e) => {
+    const p = e.target.closest('[data-pick]');
+    if (p) { e.preventDefault(); pickOnMap(p.dataset.pick); return; }
+    const o = e.target.closest('[data-open]');
+    if (o) { const it = S.items.get(o.dataset.open); if (it && !it.read) patchItem(it.id, { read: true }).then(render, () => {}); return; }
+    const l = e.target.closest('[data-tolist]');
+    if (l) { setView('list'); jumpTo(l.dataset.tolist); return; }
+    if (e.target.closest('[data-close]')) { M.sel = null; render(); }
+  });
+})();
+
+function setView(v) {
+  S.view = v;
+  lsSet('jjm-view', v);
+  render();
 }
 
 /* ---------- 내보내기 / 백업 ---------- */
@@ -897,13 +1436,13 @@ async function importJson(file) {
     for (const raw of items) {
       if (!raw || !raw.url) continue;
       const norm = normUrl(raw.url), id = hid(norm);
-      const old = S.items.get(id);
+      const old = findItem(id);
       if (!old) { await putItem({ ...raw, id, norm, domain: hostOf(norm) }); added++; continue; }
-      const seen = [...new Set([...(old.seen || []), ...(raw.seen || [])])].sort().slice(-MAX_SEEN);
+      const seen = mergeSeen(old.seen, raw.seen);
       // 다른 곳(로컬 서버)에서 가져온 제목·썸네일·벡터는 비어 있는 쪽을 채움
       const extra = {};
       for (const k of ['title', 'summary', 'site', 'thumb', 'fetched']) if (!old[k] && raw[k]) extra[k] = raw[k];
-      if (raw.emb && (!old.emb || old.embModel !== raw.embModel)) { extra.emb = raw.emb; extra.embModel = raw.embModel; }
+      if (raw.emb && raw.embSrc && raw.embSrc !== old.embSrc) { extra.emb = raw.emb; extra.embModel = raw.embModel; extra.embSrc = raw.embSrc; }
       if (seen.length !== (old.seen || []).length || Object.keys(extra).length) {
         const [first, last] = firstLast(seen);
         await putItem({ ...old, ...extra, seen, first, last, read: old.read || !!raw.read });
@@ -968,6 +1507,8 @@ $('preview').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.id === 'savePending') savePending();
+  else if (b.id === 'delStray') { b.disabled = true; deleteMany(S.pending.stray.map((it) => it.id), '잘못 들어간 링크').then((ok) => { if (ok) showPreview(S.lastText, S.lastSource); }); }
+  else if (b.id === 'runTidy') runTidy();
   else if (b.id === 'cancelPending') { $('preview').hidden = true; S.pending = null; }
   else if (b.dataset.name) { $('target').value = b.dataset.name; lsSet(LS_TARGET, b.dataset.name); showPreview(S.lastText, S.lastSource); }
 });
@@ -1018,12 +1559,16 @@ function jumpTo(id) {
   if (el) el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
+$('tidy').addEventListener('click', () => { showTidy(); $('preview').scrollIntoView({ block: 'nearest' }); });
+$('vList').addEventListener('click', () => setView('list'));
+$('vMap').addEventListener('click', () => setView('map'));
 $('expCsv').addEventListener('click', exportCsv);
 $('expJson').addEventListener('click', exportJson);
 $('impJson').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importJson(f); e.target.value = ''; });
 
 // 테스트용 노출 (node에서 파서 검증)
-if (typeof window !== 'undefined') window.__linkArchive = { parseChat, extractUrls, normUrl, hid, slugTitle, related, S };
+if (typeof window !== 'undefined') window.__linkArchive = { parseChat, extractUrls, normUrl, hid, slugTitle, related, linkLabels, analyze, tidyPlan, buildGroups, S, M };
+S.view = lsGet('jjm-view') === 'map' ? 'map' : 'list';
 initStore();
 })();
 </script>
