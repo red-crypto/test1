@@ -1,0 +1,749 @@
+<title>쩡마술사 링크 모음</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 단일 컬럼 작업대. 위에서 아래로 가져오기 → 빠른 확인 → 목록. 헤더의 가로줄은 FDM 레이어 라인 */
+:root {
+  --bg: #f3f4f2;
+  --surface: #ffffff;
+  --ink: #1d2224;
+  --muted: #5f686c;
+  --line: #d9dddb;
+  --accent: #d9480f;      /* 오렌지 PLA 필라멘트 */
+  --accent-soft: #fbe7dc;
+  --ok: #2b8a3e;
+  --ok-soft: #e3f4e6;
+  --warn: #9c6500;
+  --warn-soft: #fbf0d6;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151819; --surface: #1e2224; --ink: #e6e9e8; --muted: #9aa3a6; --line: #30373a;
+    --accent: #ff7a3d; --accent-soft: #3a2418; --ok: #6cc77f; --ok-soft: #1c2e21;
+    --warn: #e5b04a; --warn-soft: #33290f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151819; --surface: #1e2224; --ink: #e6e9e8; --muted: #9aa3a6; --line: #30373a;
+  --accent: #ff7a3d; --accent-soft: #3a2418; --ok: #6cc77f; --ok-soft: #1c2e21;
+  --warn: #e5b04a; --warn-soft: #33290f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 860px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 22px; }
+h1, h2 { text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 0.78rem; font-weight: 500; letter-spacing: 0.08em; color: var(--muted); }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.head { position: relative; padding: 22px 20px 18px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.head::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background: repeating-linear-gradient(to bottom, transparent 0 5px, var(--line) 5px 6px);
+  -webkit-mask-image: linear-gradient(to left, #000, transparent 70%); mask-image: linear-gradient(to left, #000, transparent 70%); }
+.head > * { position: relative; }
+.head p { margin: 4px 0 0; color: var(--muted); }
+.stats { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; font-size: .88rem; color: var(--muted); }
+.stats b { color: var(--ink); font-weight: 500; font-family: var(--font-mono); font-size: 1.05rem; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.store { font-size: .78rem; }
+
+/* panels */
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.drop { border: 1.5px dashed var(--line); border-radius: var(--r); background: var(--surface); padding: 22px 18px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop strong { display: block; font-weight: 500; }
+.drop span { color: var(--muted); font-size: .88rem; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row > .grow { flex: 1 1 220px; min-width: 0; }
+input[type=text], input[type=search], select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; }
+textarea { width: 100%; min-height: 110px; resize: vertical; font-family: var(--font-mono); font-size: .82rem; }
+label.inline { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding-inline: 8px; }
+.btn.ghost:hover { color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+details[open] > summary { margin-bottom: 8px; }
+
+/* preview */
+.preview { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.summary { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: .82rem; background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.chip.new { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.chip.dup { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+.names { font-size: .88rem; color: var(--muted); }
+.names button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 1px 10px; margin: 3px 4px 0 0; cursor: pointer; font-size: .82rem; }
+.mini { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; border-top: 1px solid var(--line); }
+.mini li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .86rem; display: flex; gap: 10px; min-width: 0; }
+.mini .d { font-family: var(--font-mono); color: var(--muted); font-size: .78rem; flex: none; padding-top: 2px; }
+.mini .t { min-width: 0; overflow-wrap: anywhere; }
+
+/* quick check */
+.qres { font-size: .9rem; min-height: 1.4em; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* list */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar .grow { flex: 1 1 200px; min-width: 0; }
+.month { font-size: .82rem; font-weight: 500; color: var(--muted); padding: 14px 0 6px; border-bottom: 1px solid var(--line); }
+.items { list-style: none; margin: 0; padding: 0; }
+.item { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.item.read .title { color: var(--muted); font-weight: 400; }
+.item.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+.item .date { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); padding-top: 3px; font-variant-numeric: tabular-nums; }
+.item .body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.item .title { font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
+.item .title:hover { color: var(--accent); text-decoration: underline; }
+.item .url { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); overflow-wrap: anywhere; }
+.item .dom { display: inline-block; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin-right: 6px; color: var(--ink); }
+.item .rep { color: var(--warn); font-family: var(--font-mono); font-size: .76rem; }
+.item .acts { display: flex; gap: 2px; align-items: center; }
+.item .acts .btn { font-size: .8rem; padding: 4px 8px; }
+.item .acts .del-confirm { color: var(--accent); }
+.empty { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 26px 20px; color: var(--muted); }
+.empty ol { margin: 8px 0 0; padding-left: 20px; }
+.more { align-self: center; }
+footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 16px; font-size: .88rem; color: var(--muted); }
+footer .sp { flex: 1; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: var(--r); font-size: .9rem; max-width: calc(100% - 32px); z-index: 20; }
+@media (max-width: 560px) {
+  .item { grid-template-columns: minmax(0, 1fr) auto; }
+  .item .date { grid-column: 1 / -1; padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .item.flash { animation: none; } .drop { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <h1>쩡마술사 링크 모음</h1>
+    <p>카톡방에 올라온 3D프린터 기사·자료 링크를 중복 없이 모아 둡니다.</p>
+    <div class="stats">
+      <span><b id="stTotal">0</b>링크</span>
+      <span><b id="stUnread">0</b>안 읽음</span>
+      <span><b id="stDup">0</b>중복으로 걸러짐</span>
+      <span class="store" id="stStore">불러오는 중…</span>
+    </div>
+  </header>
+
+  <section class="panel" aria-labelledby="hImport">
+    <h2 id="hImport">대화 가져오기</h2>
+    <label class="drop" id="drop" for="file">
+      <strong>카톡 대화 내보내기 파일(.txt / .csv)을 여기에 끌어 놓기</strong>
+      <span>또는 눌러서 파일 선택 · 같은 파일을 여러 번 넣어도 중복으로 쌓이지 않습니다</span>
+    </label>
+    <input type="file" id="file" accept=".txt,.csv,text/plain" hidden>
+    <details id="pasteBox">
+      <summary>텍스트로 붙여넣기</summary>
+      <textarea id="paste" placeholder="대화 내용을 붙여넣으세요"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="parsePaste" type="button">분석</button>
+        <button class="btn ghost" id="fillSample" type="button">예시 대화 넣어 보기</button>
+      </div>
+    </details>
+    <div class="row">
+      <label class="inline grow" for="target"><span style="white-space:nowrap">올린 사람</span>
+        <input type="text" id="target" class="grow" value="쩡마술사" placeholder="이름 (여러 개면 쉼표로)">
+      </label>
+    </div>
+    <div class="preview" id="preview" hidden></div>
+  </section>
+
+  <section class="panel" aria-labelledby="hQuick">
+    <h2 id="hQuick">링크 하나 확인</h2>
+    <div class="row">
+      <input type="search" id="quick" class="grow" placeholder="링크를 붙여넣으면 이미 있는지 바로 알려줍니다">
+    </div>
+    <div class="qres" id="qres"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="hList">
+    <h2 id="hList">모은 링크</h2>
+    <div class="toolbar">
+      <input type="search" id="q" class="grow" placeholder="제목·주소 검색 (예: 밤부랩, 펌웨어, klipper)">
+      <select id="dom" aria-label="사이트"><option value="">모든 사이트</option></select>
+      <select id="sort" aria-label="정렬">
+        <option value="new">최신순</option>
+        <option value="old">오래된순</option>
+        <option value="rep">많이 올라온 순</option>
+      </select>
+      <label class="inline" for="unread"><input type="checkbox" id="unread"> 안 읽은 것만</label>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <footer>
+    <span id="foot"></span>
+    <span class="sp"></span>
+    <button class="btn" id="expCsv" type="button">CSV 내보내기</button>
+    <button class="btn" id="expJson" type="button">백업(JSON)</button>
+    <label class="btn" for="impJson">백업 불러오기</label>
+    <input type="file" id="impJson" accept=".json,application/json" hidden>
+  </footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const LS_ITEMS = 'jjm-links-v1', LS_TARGET = 'jjm-target';
+const MAX_SEEN = 60, PAGE = 200;
+
+/* ---------- 카톡 내보내기 파서 ---------- */
+// PC:      --------------- 2026년 10월 30일 목요일 ---------------  /  [이름] [오후 3:21] 내용
+// Android: 2026년 10월 30일 오후 3:21, 이름 : 내용
+// iOS:     2026. 10. 30. 오후 3:21, 이름 : 내용
+// Mac CSV: 2026-10-30 15:21:00,"이름","내용"
+const DATE = String.raw`(\d{4})(?:년\s*|\.\s*)(\d{1,2})(?:월\s*|\.\s*)(\d{1,2})(?:일|\.)?`;
+const RE = {
+  pcDay: /^-{3,}\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/,
+  pcMsg: /^\[([^\]]+)\]\s*\[(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})\s*(AM|PM)?\]\s?(.*)$/,
+  mobMsg: new RegExp('^' + DATE + String.raw`\s*,?\s*(오전|오후|AM|PM)?\s*(\d{1,2}):(\d{2})(?:\s*(AM|PM))?\s*,\s*(.+?)\s:\s?(.*)$`),
+  mobSys: new RegExp('^' + DATE + String.raw`\s*,?\s*(?:(?:오전|오후)\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}|[월화수목금토일]요일)`),
+  csv: /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::\d{2})?,"((?:[^"]|"")*)","(.*)$/,
+};
+const pad = (n) => String(n).padStart(2, '0');
+const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+function hm(h, m, ap) {
+  h = +h;
+  if (ap === '오후' || ap === 'PM') h = (h % 12) + 12;
+  else if (ap === '오전' || ap === 'AM') h = h % 12;
+  return `${pad(h)}:${pad(m)}`;
+}
+
+function parseChat(text) {
+  const lines = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
+  const msgs = [];
+  let cur = null, day = '';
+  const flush = () => { if (cur) { msgs.push(cur); cur = null; } };
+  for (const line of lines) {
+    let m;
+    if ((m = RE.pcDay.exec(line))) { flush(); day = ymd(m[1], m[2], m[3]); continue; }
+    if ((m = RE.mobMsg.exec(line))) {
+      flush();
+      cur = { name: m[8].trim(), date: ymd(m[1], m[2], m[3]) + ' ' + hm(m[5], m[6], m[4] || m[7]), text: m[9] };
+      continue;
+    }
+    if ((m = RE.csv.exec(line))) {
+      flush();
+      let body = m[4];
+      if (body.endsWith('"')) body = body.slice(0, -1);
+      cur = { name: m[3].replace(/""/g, '"').trim(), date: m[1] + ' ' + m[2], text: body.replace(/""/g, '"') };
+      continue;
+    }
+    if ((m = RE.pcMsg.exec(line))) {
+      flush();
+      cur = { name: m[1].trim(), date: (day ? day + ' ' : '') + hm(m[3], m[4], m[2] || m[5]), text: m[6] };
+      continue;
+    }
+    if (RE.mobSys.test(line)) { flush(); continue; }  // 입장/퇴장 같은 시스템 줄, 날짜 구분선
+    if (cur) cur.text += '\n' + line;
+  }
+  flush();
+  return msgs;
+}
+
+/* ---------- 링크 추출 / 정규화 ---------- */
+const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"'`가-힣ㄱ-ㅎㅏ-ㅣ]+/gi;
+const TRACK = /^(utm_.*|fbclid|gclid|dclid|igshid|igsh|si|ref|ref_src|ref_url|spm|mc_cid|mc_eid|_ga|_gl|feature|share_id|ocid|cmpid|sid)$/i;
+
+function extractUrls(text) {
+  const out = [];
+  for (const raw of text.match(URL_RE) || []) {
+    const u = raw.replace(/[)\]}>.,!?;:'"”’。、]+$/, '');
+    if (u.length > 10) out.push(u);
+  }
+  return out;
+}
+
+function normUrl(raw) {
+  let s = raw.trim();
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  let u;
+  try { u = new URL(s); } catch { return s.toLowerCase(); }
+  let host = u.hostname.toLowerCase().replace(/^(www|m|mobile)\./, '');
+  let path = u.pathname;
+  const p = u.searchParams;
+  // 같은 글의 다른 주소 형태를 하나로
+  if (host === 'youtu.be') return 'youtube.com/watch?v=' + path.slice(1).split('/')[0];
+  if (host.endsWith('youtube.com')) {
+    const sh = path.match(/^\/(?:shorts|live|embed)\/([\w-]+)/);
+    if (sh) return 'youtube.com/watch?v=' + sh[1];
+    if (p.get('v')) return 'youtube.com/watch?v=' + p.get('v');
+  }
+  if (host === 'blog.naver.com' && p.get('blogId') && p.get('logNo')) return `blog.naver.com/${p.get('blogId')}/${p.get('logNo')}`;
+  if (host === 'n.news.naver.com') path = path.replace(/^\/mnews\//, '/');
+  const keep = [...p.entries()].filter(([k]) => !TRACK.test(k)).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  const q = new URLSearchParams(keep).toString();
+  path = path.replace(/\/+$/, '').replace(/\/index\.(html?|php)$/i, '');
+  return host + path + (q ? '?' + q : '');
+}
+
+function hostOf(norm) { return norm.split(/[/?]/)[0]; }
+
+// FNV-1a 두 갈래 → 문서 id (db 경로에 쓸 수 있는 문자만)
+function hid(s) {
+  let a = 0x811c9dc5, b = 0x9747b28c;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x5bd1e995); b ^= b >>> 15;
+  }
+  return 'l' + (a >>> 0).toString(36) + (b >>> 0).toString(36);
+}
+
+function describe(text) {
+  return text.replace(URL_RE, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
+/* ---------- 저장소: claude db, 없으면 localStorage ---------- */
+const S = { items: new Map(), db: null, backend: 'pending', pending: null };
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
+
+function loadLocal() {
+  S.backend = 'local';
+  try {
+    const arr = JSON.parse(lsGet(LS_ITEMS) || '[]');
+    S.items = new Map(arr.map((it) => [it.id, it]));
+  } catch { S.items = new Map(); }
+}
+function saveLocal() {
+  if (!lsSet(LS_ITEMS, JSON.stringify([...S.items.values()]))) toast('브라우저 저장소에 쓰지 못했습니다. 백업(JSON)으로 보관해 주세요.');
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function dbWrite(fn) {
+  for (let i = 0; ; i++) {
+    try { return await fn(); }
+    catch (e) {
+      const code = e && e.code;
+      if (i < 4 && (code === 'resource_exhausted' || code === 'unavailable')) { await sleep(800 * (i + 1) + Math.random() * 400); continue; }
+      throw e;
+    }
+  }
+}
+
+async function putItem(it) {
+  S.items.set(it.id, it);
+  if (S.db) {
+    const { id, ...body } = it;
+    await dbWrite(() => S.db.collection('links').doc(id).set(body));
+  }
+}
+async function delItem(id) {
+  S.items.delete(id);
+  if (S.db) await dbWrite(() => S.db.collection('links').doc(id).delete());
+  else saveLocal();
+}
+async function patchItem(id, patch) {
+  const it = S.items.get(id);
+  if (!it) return;
+  Object.assign(it, patch);
+  if (S.db) await dbWrite(() => S.db.collection('links').doc(id).update(patch));
+  else saveLocal();
+}
+
+async function initStore() {
+  const c = window.claude;
+  if (!c || typeof c.use !== 'function') { loadLocal(); render(); return; }
+  render();
+  let db = null;
+  try { db = await c.use('db'); } catch { db = null; }
+  if (!db) { loadLocal(); render(); return; }
+  S.db = db; S.backend = 'db';
+  db.collection('links').onSnapshot((snap) => {
+    S.items = new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+    S.loaded = true;
+    render();
+  }, (e) => {
+    toast('저장소 연결이 끊겼습니다. 페이지를 새로 고쳐 주세요. (' + (e && e.code) + ')');
+  });
+}
+
+/* ---------- 가져오기 분석 ---------- */
+function targets() {
+  return $('target').value.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function analyze(text) {
+  const msgs = parseChat(text);
+  const names = targets();
+  const senders = new Map();
+  const found = new Map();
+  let mine = 0, rawLinks = 0;
+  for (const m of msgs) {
+    senders.set(m.name, (senders.get(m.name) || 0) + 1);
+    if (!names.includes(m.name)) continue;
+    mine++;
+    const urls = extractUrls(m.text);
+    if (!urls.length) continue;
+    const desc = describe(m.text);
+    for (const url of urls) {
+      rawLinks++;
+      const norm = normUrl(url);
+      const id = hid(norm);
+      let f = found.get(id);
+      if (!f) { f = { id, url, norm, domain: hostOf(norm), desc, seen: new Set() }; found.set(id, f); }
+      if (!f.desc && desc) f.desc = desc;
+      f.seen.add(m.date + '|' + norm);
+    }
+  }
+  const fresh = [], known = [];
+  for (const f of found.values()) {
+    const old = S.items.get(f.id);
+    if (!old) { fresh.push(f); continue; }
+    const oldSeen = new Set(old.seen || []);
+    const add = [...f.seen].filter((k) => !oldSeen.has(k));
+    known.push({ f, old, add });
+  }
+  return { msgs: msgs.length, mine, rawLinks, found, fresh, known, senders };
+}
+
+function firstLast(seenKeys) {
+  const ds = seenKeys.map((k) => k.split('|')[0]).filter(Boolean).sort();
+  return [ds[0] || '', ds[ds.length - 1] || ''];
+}
+
+function showPreview(text, source) {
+  const r = analyze(text);
+  S.pending = r;
+  const box = $('preview');
+  box.hidden = false;
+  const fileDup = r.rawLinks - r.found.size;
+  const knownWithNew = r.known.filter((k) => k.add.length).length;
+  let html = `<div class="summary">
+    <span class="chip">${esc(source)}</span>
+    <span class="chip">메시지 ${n(r.msgs)}개</span>
+    <span class="chip">${esc(targets().join(', ') || '(이름 없음)')} 메시지 ${n(r.mine)}개</span>
+    <span class="chip">링크 ${n(r.rawLinks)}개${fileDup ? ` (파일 안 중복 ${n(fileDup)})` : ''}</span>
+    <span class="chip new">새 링크 ${n(r.fresh.length)}</span>
+    <span class="chip dup">이미 있음 ${n(r.known.length)}</span>
+  </div>`;
+  if (!r.msgs) {
+    html += `<p class="names">카톡 내보내기 형식을 찾지 못했습니다. PC·안드로이드·아이폰의 "대화 내보내기" txt 파일인지 확인해 주세요.</p>`;
+  } else if (!r.mine) {
+    const top = [...r.senders.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+    html += `<div class="names">이 파일에서 "${esc(targets().join(', '))}" 이름을 찾지 못했습니다. 아래 이름 중 하나를 누르면 그 이름으로 다시 분석합니다.<br>
+      ${top.map(([nm, c]) => `<button type="button" data-name="${esc(nm)}">${esc(nm)} · ${c}</button>`).join('')}</div>`;
+  }
+  if (r.fresh.length) {
+    const list = r.fresh.slice().sort((a, b) => firstLast([...b.seen])[0].localeCompare(firstLast([...a.seen])[0]));
+    html += `<ul class="mini">${list.slice(0, 100).map((f) => `<li><span class="d">${esc(firstLast([...f.seen])[0].slice(0, 10))}</span><span class="t">${esc(f.desc || f.norm)}</span></li>`).join('')}
+      ${list.length > 100 ? `<li><span class="t">… 외 ${n(list.length - 100)}개</span></li>` : ''}</ul>`;
+  }
+  const work = r.fresh.length + knownWithNew;
+  html += `<div class="row">
+    <button class="btn primary" id="savePending" type="button" ${work ? '' : 'disabled'}>${r.fresh.length ? `새 링크 ${n(r.fresh.length)}개 저장` : '저장할 새 링크 없음'}</button>
+    <button class="btn ghost" id="cancelPending" type="button">닫기</button>
+  </div>`;
+  box.innerHTML = html;
+  S.lastText = text; S.lastSource = source;
+}
+
+async function savePending() {
+  const r = S.pending;
+  if (!r) return;
+  const btn = $('savePending');
+  btn.disabled = true;
+  const now = new Date().toISOString();
+  const jobs = [];
+  for (const f of r.fresh) {
+    const seen = [...f.seen].sort().slice(-MAX_SEEN);
+    const [first, last] = firstLast(seen);
+    jobs.push({ id: f.id, url: f.url, norm: f.norm, domain: f.domain, desc: f.desc, first, last, seen, read: false, added: now });
+  }
+  for (const k of r.known) {
+    if (!k.add.length) continue;
+    const seen = [...new Set([...(k.old.seen || []), ...k.add])].sort().slice(-MAX_SEEN);
+    const [first, last] = firstLast(seen);
+    jobs.push({ ...k.old, seen, first: k.old.first && k.old.first < first ? k.old.first : first, last, desc: k.old.desc || k.f.desc });
+  }
+  let done = 0;
+  try {
+    for (const it of jobs) {
+      await putItem(it);
+      done++;
+      if (S.db && jobs.length > 5) btn.textContent = `저장 중… ${done}/${jobs.length}`;
+    }
+    if (!S.db) saveLocal();
+    toast(`새 링크 ${r.fresh.length}개 저장 · 중복 ${r.known.length}개는 건너뜀`);
+    S.flash = new Set(r.fresh.map((f) => f.id));
+    S.pending = null;
+    $('preview').hidden = true;
+    render();
+  } catch (e) {
+    if (!S.db) saveLocal();
+    btn.disabled = false;
+    btn.textContent = '이어서 저장';
+    toast(`${done}/${jobs.length}개까지 저장했습니다. ` + (e && e.code === 'quota_exceeded' ? '저장 공간이 가득 찼습니다.' : '다시 눌러 이어서 저장하세요.'));
+    S.pending = analyze(S.lastText);
+  }
+}
+
+/* ---------- 빠른 확인 ---------- */
+function quickCheck() {
+  const v = $('quick').value.trim();
+  const out = $('qres');
+  if (!v) { out.innerHTML = ''; return; }
+  const url = extractUrls(v)[0] || v;
+  const norm = normUrl(url);
+  const it = S.items.get(hid(norm));
+  if (it) {
+    out.innerHTML = `<span class="chip dup">이미 있음</span><span>${esc(it.first ? it.first.slice(0, 10) + ' 처음 올라옴' : '')}${(it.seen || []).length > 1 ? ` · ${it.seen.length}번 올라옴` : ''}</span><button class="btn ghost" type="button" data-goto="${it.id}">목록에서 보기</button>`;
+  } else {
+    out.innerHTML = `<span class="chip new">새 링크</span><span class="url" style="font-family:var(--font-mono);font-size:.8rem;overflow-wrap:anywhere">${esc(norm)}</span><button class="btn" type="button" id="quickAdd">추가</button>`;
+  }
+}
+async function quickAdd() {
+  const v = $('quick').value.trim();
+  const url = extractUrls(v)[0] || v;
+  const norm = normUrl(url);
+  const id = hid(norm);
+  if (S.items.has(id)) return quickCheck();
+  const d = new Date();
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const desc = describe(v);
+  try {
+    await putItem({ id, url: /^https?:/i.test(url) ? url : 'https://' + url, norm, domain: hostOf(norm), desc, first: date, last: date, seen: [date + '|' + norm], read: false, added: d.toISOString() });
+    if (!S.db) saveLocal();
+    $('quick').value = '';
+    S.flash = new Set([id]);
+    render(); quickCheck();
+    toast('추가했습니다');
+  } catch { toast('저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'); }
+}
+
+/* ---------- 목록 렌더 ---------- */
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const n = (x) => Number(x).toLocaleString('ko-KR');
+let shown = PAGE, armed = null;
+
+function render() {
+  const all = [...S.items.values()];
+  $('stTotal').textContent = n(all.length);
+  $('stUnread').textContent = n(all.filter((i) => !i.read).length);
+  $('stDup').textContent = n(all.reduce((s, i) => s + Math.max(0, (i.seen || []).length - 1), 0));
+  $('stStore').textContent = S.backend === 'db' ? '· 계정에 저장됨' : S.backend === 'local' ? '· 이 브라우저에 저장됨' : '불러오는 중…';
+  $('foot').textContent = S.backend === 'db' ? '어느 기기에서 열어도 같은 목록이 보입니다.' : S.backend === 'local' ? '이 브라우저에만 저장됩니다. 가끔 백업(JSON)을 받아 두세요.' : '';
+
+  // 사이트 필터
+  const domSel = $('dom'), curDom = domSel.value;
+  const counts = new Map();
+  for (const i of all) counts.set(i.domain, (counts.get(i.domain) || 0) + 1);
+  const doms = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  domSel.innerHTML = `<option value="">모든 사이트</option>` + doms.map(([d, c]) => `<option value="${esc(d)}">${esc(d)} (${c})</option>`).join('');
+  domSel.value = counts.has(curDom) ? curDom : '';
+
+  const list = $('list');
+  if (S.backend === 'pending' || (S.backend === 'db' && !S.loaded)) { list.innerHTML = `<div class="empty">저장된 링크를 불러오는 중입니다…</div>`; return; }
+  if (!all.length) {
+    list.innerHTML = `<div class="empty"><strong>아직 모은 링크가 없습니다.</strong>
+      <ol><li>카톡방 오른쪽 위 메뉴 → 설정 → <b>대화 내보내기</b>(PC는 대화방 메뉴 → 대화 내용 → 내보내기)</li>
+      <li>받은 txt 파일을 위의 <b>대화 가져오기</b> 칸에 끌어 놓기</li>
+      <li>미리보기에서 새 링크 개수를 확인하고 저장</li></ol>
+      <p style="margin:10px 0 0">먼저 보고 싶다면 "텍스트로 붙여넣기 → 예시 대화 넣어 보기"를 눌러 보세요. 저장 버튼을 누르기 전에는 아무것도 저장되지 않습니다.</p></div>`;
+    return;
+  }
+
+  const q = $('q').value.trim().toLowerCase();
+  const dom = domSel.value, onlyUnread = $('unread').checked, sort = $('sort').value;
+  let rows = all.filter((i) => (!dom || i.domain === dom) && (!onlyUnread || !i.read) &&
+    (!q || (i.desc || '').toLowerCase().includes(q) || (i.norm || '').includes(q)));
+  const byDate = (a, b) => (a.first || '').localeCompare(b.first || '');
+  if (sort === 'old') rows.sort(byDate);
+  else if (sort === 'rep') rows.sort((a, b) => (b.seen || []).length - (a.seen || []).length || byDate(b, a));
+  else rows.sort((a, b) => byDate(b, a));
+
+  if (!rows.length) { list.innerHTML = `<div class="empty">조건에 맞는 링크가 없습니다.</div>`; return; }
+
+  let html = '', month = null;
+  for (const i of rows.slice(0, shown)) {
+    const mo = sort === 'rep' ? null : (i.first || '').slice(0, 7);
+    if (sort !== 'rep' && mo !== month) {
+      if (month !== null) html += '</ul>';
+      month = mo;
+      html += `<div class="month">${mo ? mo.replace('-', '년 ') + '월' : '날짜 없음'}</div><ul class="items">`;
+    } else if (month === null && html === '') html += '<ul class="items">';
+    const rep = (i.seen || []).length;
+    const title = i.desc || i.norm;
+    const path = i.norm.slice(i.domain.length) || '/';
+    html += `<li class="item${i.read ? ' read' : ''}${S.flash && S.flash.has(i.id) ? ' flash' : ''}" id="it-${i.id}">
+      <span class="date">${esc((i.first || '').slice(2, 10).replace(/-/g, '.'))}</span>
+      <div class="body">
+        <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer" data-open="${i.id}">${esc(title.length > 140 ? title.slice(0, 140) + '…' : title)}</a>
+        <span class="url"><span class="dom">${esc(i.domain)}</span>${esc(path.length > 70 ? path.slice(0, 70) + '…' : path)}</span>
+        ${rep > 1 ? `<span class="rep" title="${esc((i.seen || []).map((k) => k.split('|')[0]).join('\n'))}">${rep}번 올라옴 · 마지막 ${esc((i.last || '').slice(0, 10))}</span>` : ''}
+      </div>
+      <div class="acts">
+        <button class="btn ghost" type="button" data-read="${i.id}">${i.read ? '안 읽음으로' : '읽음'}</button>
+        <button class="btn ghost${armed === i.id ? ' del-confirm' : ''}" type="button" data-del="${i.id}">${armed === i.id ? '정말 삭제' : '삭제'}</button>
+      </div>
+    </li>`;
+  }
+  html += '</ul>';
+  if (rows.length > shown) html += `<button class="btn more" type="button" id="more">${n(rows.length - shown)}개 더 보기</button>`;
+  list.innerHTML = html;
+  S.flash = null;
+}
+
+/* ---------- 내보내기 / 백업 ---------- */
+async function offerFile(filename, data, mime) {
+  const c = window.claude;
+  if (c && typeof c.use === 'function') {
+    const dl = await c.use('downloads');
+    if (dl) {
+      try { await dl.save({ filename, data }); return; }
+      catch (e) { if (e && e.code === 'declined') return; toast('파일을 내려받지 못했습니다. (' + (e && e.code) + ')'); return; }
+    }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: mime }));
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const today = () => new Date().toISOString().slice(0, 10);
+function exportCsv() {
+  const q = (s) => '"' + String(s ?? '').replace(/"/g, '""') + '"';
+  const rows = [...S.items.values()].sort((a, b) => (a.first || '').localeCompare(b.first || ''));
+  const csv = '\uFEFF' + ['처음 올라온 날짜,마지막,횟수,사이트,설명,링크,읽음']
+    .concat(rows.map((i) => [i.first, i.last, (i.seen || []).length, i.domain, i.desc, i.url, i.read ? 'Y' : ''].map(q).join(','))).join('\r\n');
+  offerFile(`쩡마술사_링크_${today()}.csv`, csv, 'text/csv');
+}
+function exportJson() {
+  offerFile(`쩡마술사_링크_백업_${today()}.json`, JSON.stringify({ v: 1, items: [...S.items.values()] }, null, 1), 'application/json');
+}
+async function importJson(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { toast('JSON 백업 파일이 아닙니다.'); return; }
+  const items = Array.isArray(data) ? data : data.items;
+  if (!Array.isArray(items)) { toast('백업 파일에서 링크 목록을 찾지 못했습니다.'); return; }
+  let added = 0, merged = 0;
+  try {
+    for (const raw of items) {
+      if (!raw || !raw.url) continue;
+      const norm = normUrl(raw.url), id = hid(norm);
+      const old = S.items.get(id);
+      if (!old) { await putItem({ ...raw, id, norm, domain: hostOf(norm) }); added++; continue; }
+      const seen = [...new Set([...(old.seen || []), ...(raw.seen || [])])].sort().slice(-MAX_SEEN);
+      if (seen.length !== (old.seen || []).length) {
+        const [first, last] = firstLast(seen);
+        await putItem({ ...old, seen, first, last, read: old.read || !!raw.read });
+        merged++;
+      }
+    }
+  } finally {
+    if (!S.db) saveLocal();
+    render();
+    toast(`백업에서 ${added}개 추가, ${merged}개 합침`);
+  }
+}
+
+/* ---------- 토스트 ---------- */
+let toastT;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+/* ---------- 이벤트 ---------- */
+const SAMPLE = `쩡마술사 님과 카카오톡 대화
+저장한 날짜 : 2026-10-30 21:10:02
+
+--------------- 2026년 10월 28일 화요일 ---------------
+[쩡마술사] [오후 8:02] 밤부랩 새 펌웨어 나왔네요 플로우 캘리브레이션 개선
+https://wiki.bambulab.com/en/x1/manual/X1-X1C-firmware-release-history?utm_source=kakao
+[민수] [오후 8:05] 오 업데이트 해봐야겠다
+[쩡마술사] [오후 9:40] Klipper 입력 셰이퍼 정리 잘 된 글
+https://www.klipper3d.org/Resonance_Compensation.html
+--------------- 2026년 10월 29일 수요일 ---------------
+[쩡마술사] [오전 10:12] 이거 어제 올렸던가요? 다시 공유
+https://wiki.bambulab.com/en/x1/manual/X1-X1C-firmware-release-history
+[쩡마술사] [오후 1:30] 프루사 신제품 영상
+https://youtu.be/abcdEFG1234?si=Xyz
+[쩡마술사] [오후 1:31] 같은 거 유튜브 앱 링크
+https://m.youtube.com/watch?v=abcdEFG1234&feature=share`;
+
+const drop = $('drop');
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+$('file').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; });
+async function readFile(f) {
+  let text = await f.text();
+  if (text.includes('\uFFFD')) {  // 예전 PC 버전의 EUC-KR 파일
+    try { text = new TextDecoder('euc-kr').decode(await f.arrayBuffer()); } catch {}
+  }
+  showPreview(text, f.name);
+}
+$('parsePaste').addEventListener('click', () => showPreview($('paste').value, '붙여넣은 텍스트'));
+$('fillSample').addEventListener('click', () => { $('paste').value = SAMPLE; showPreview(SAMPLE, '예시 대화'); });
+
+$('target').value = lsGet(LS_TARGET) || '쩡마술사';
+$('target').addEventListener('change', () => {
+  lsSet(LS_TARGET, $('target').value);
+  if (S.lastText && !$('preview').hidden) showPreview(S.lastText, S.lastSource);
+});
+
+$('preview').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'savePending') savePending();
+  else if (b.id === 'cancelPending') { $('preview').hidden = true; S.pending = null; }
+  else if (b.dataset.name) { $('target').value = b.dataset.name; lsSet(LS_TARGET, b.dataset.name); showPreview(S.lastText, S.lastSource); }
+});
+
+$('quick').addEventListener('input', quickCheck);
+$('qres').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'quickAdd') quickAdd();
+  else if (b.dataset.goto) {
+    $('q').value = ''; $('dom').value = ''; $('unread').checked = false; shown = Infinity;
+    S.flash = new Set([b.dataset.goto]); render();
+    const el = document.getElementById('it-' + b.dataset.goto);
+    if (el) el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+});
+
+['q', 'dom', 'sort', 'unread'].forEach((id) => $(id).addEventListener(id === 'q' ? 'input' : 'change', () => { shown = PAGE; render(); }));
+
+$('list').addEventListener('click', async (e) => {
+  const a = e.target.closest('[data-open]');
+  if (a) { const it = S.items.get(a.dataset.open); if (it && !it.read) patchItem(it.id, { read: true }).then(render, () => {}); return; }
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'more') { shown += PAGE; render(); return; }
+  try {
+    if (b.dataset.read) { const it = S.items.get(b.dataset.read); await patchItem(it.id, { read: !it.read }); render(); }
+    else if (b.dataset.del) {
+      if (armed === b.dataset.del) { armed = null; await delItem(b.dataset.del); render(); toast('삭제했습니다'); }
+      else { armed = b.dataset.del; render(); setTimeout(() => { if (armed === b.dataset.del) { armed = null; render(); } }, 4000); }
+    }
+  } catch { toast('저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'); }
+});
+
+$('expCsv').addEventListener('click', exportCsv);
+$('expJson').addEventListener('click', exportJson);
+$('impJson').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importJson(f); e.target.value = ''; });
+
+// 테스트용 노출 (node에서 파서 검증)
+if (typeof window !== 'undefined') window.__linkArchive = { parseChat, extractUrls, normUrl, hid };
+initStore();
+})();
+</script>
