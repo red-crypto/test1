@@ -98,11 +98,35 @@ details[open] > summary { margin-bottom: 8px; }
 .toolbar .grow { flex: 1 1 200px; min-width: 0; }
 .month { font-size: .82rem; font-weight: 500; color: var(--muted); padding: 14px 0 6px; border-bottom: 1px solid var(--line); }
 .items { list-style: none; margin: 0; padding: 0; }
-.item { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.item { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 6px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
 .item.read .title { color: var(--muted); font-weight: 400; }
+.item.read .thumb { opacity: .6; }
 .item.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
-.item .date { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); padding-top: 3px; font-variant-numeric: tabular-nums; }
+.thumb { display: block; width: 120px; aspect-ratio: 3 / 2; max-width: 100%; border-radius: 4px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; padding: 6px 8px; color: #fff; font-size: .74rem; line-height: 1.25; font-weight: 500;
+  background: repeating-linear-gradient(to bottom, transparent 0 4px, rgba(255,255,255,.12) 4px 5px), hsl(var(--h) 38% 42%); }
+.ph b { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.item .meta { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.item .sum { font-size: .86rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.item .kakao { font-size: .84rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item .kakao::before { content: "카톡 "; font-size: .72rem; color: var(--accent); font-weight: 500; }
+.rel { grid-column: 2 / -1; display: flex; flex-direction: column; gap: 6px; background: var(--bg); border-radius: var(--r); padding: 10px 12px; }
+.rel h3 { margin: 0; font-size: .78rem; font-weight: 500; color: var(--muted); }
+.rel a { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-decoration: none; font-size: .86rem; }
+.rel a:hover .rt { color: var(--accent); text-decoration: underline; }
+.rel .thumb { width: 54px; }
+.rel .ph { padding: 3px 4px; font-size: .6rem; }
+.rel .ph b { font-size: .7rem; }
+.rel .rt { overflow-wrap: anywhere; }
+.rel .sim { font-family: var(--font-mono); font-size: .74rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.enrich { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: .86rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+.enrich .grow { flex: 1 1 240px; min-width: 0; }
+.enrich code { font-family: var(--font-mono); font-size: .8rem; background: var(--bg); padding: 1px 5px; border-radius: 3px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px; }
+.dot.on { background: var(--ok); }
+.dot.half { background: var(--warn); }
 .item .body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .item .title { font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
 .item .title:hover { color: var(--accent); text-decoration: underline; }
@@ -119,8 +143,10 @@ footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-t
 footer .sp { flex: 1; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: var(--r); font-size: .9rem; max-width: calc(100% - 32px); z-index: 20; }
 @media (max-width: 560px) {
-  .item { grid-template-columns: minmax(0, 1fr) auto; }
-  .item .date { grid-column: 1 / -1; padding: 0; }
+  .item { grid-template-columns: 88px minmax(0, 1fr); }
+  .item .thumb { width: 88px; }
+  .item .acts { grid-column: 2; }
+  .rel { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .item.flash { animation: none; } .drop { transition: none; } }
 </style>
@@ -180,6 +206,7 @@ footer .sp { flex: 1; }
       </select>
       <label class="inline" for="unread"><input type="checkbox" id="unread"> 안 읽은 것만</label>
     </div>
+    <div class="enrich" id="enrich" hidden></div>
     <div id="list"></div>
   </section>
 
@@ -309,7 +336,7 @@ function describe(text) {
 }
 
 /* ---------- 저장소: claude db, 없으면 localStorage ---------- */
-const S = { items: new Map(), db: null, backend: 'pending', pending: null };
+const S = { items: new Map(), db: null, backend: 'pending', pending: null, ver: 0, open: new Set() };
 
 function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
@@ -320,6 +347,7 @@ function loadLocal() {
     const arr = JSON.parse(lsGet(LS_ITEMS) || '[]');
     S.items = new Map(arr.map((it) => [it.id, it]));
   } catch { S.items = new Map(); }
+  S.ver++;
 }
 function saveLocal() {
   if (!lsSet(LS_ITEMS, JSON.stringify([...S.items.values()]))) toast('브라우저 저장소에 쓰지 못했습니다. 백업(JSON)으로 보관해 주세요.');
@@ -337,29 +365,63 @@ async function dbWrite(fn) {
   }
 }
 
+// 로컬 서버(server.py) API
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { code: 'http_' + r.status });
+  return j;
+}
+
+// localStorage 모드에서만 전체를 한 번에 기록. db·서버는 항목마다 이미 기록됨
+function persist() { if (S.backend === 'local') saveLocal(); }
+
 async function putItem(it) {
   S.items.set(it.id, it);
-  if (S.db) {
+  S.ver++;
+  if (S.backend === 'db') {
     const { id, ...body } = it;
     await dbWrite(() => S.db.collection('links').doc(id).set(body));
+  } else if (S.backend === 'server') {
+    await api('PUT', '/api/items/' + it.id, it);
   }
 }
 async function delItem(id) {
   S.items.delete(id);
-  if (S.db) await dbWrite(() => S.db.collection('links').doc(id).delete());
+  S.ver++;
+  if (S.backend === 'db') await dbWrite(() => S.db.collection('links').doc(id).delete());
+  else if (S.backend === 'server') await api('DELETE', '/api/items/' + id);
   else saveLocal();
 }
 async function patchItem(id, patch) {
   const it = S.items.get(id);
   if (!it) return;
   Object.assign(it, patch);
-  if (S.db) await dbWrite(() => S.db.collection('links').doc(id).update(patch));
+  S.ver++;
+  if (S.backend === 'db') await dbWrite(() => S.db.collection('links').doc(id).update(patch));
+  else if (S.backend === 'server') await api('PATCH', '/api/items/' + id, patch);
   else saveLocal();
 }
 
 async function initStore() {
   const c = window.claude;
-  if (!c || typeof c.use !== 'function') { loadLocal(); render(); return; }
+  if (!c || typeof c.use !== 'function') {
+    if (/^https?:$/.test(location.protocol)) {
+      try {
+        const ctl = new AbortController();
+        setTimeout(() => ctl.abort(), 2000);
+        const ping = await (await fetch('/api/ping', { signal: ctl.signal })).json();
+        if (ping && ping.ok) {
+          S.server = ping;
+          S.items = new Map((await api('GET', '/api/items')).items.map((it) => [it.id, it]));
+          S.backend = 'server'; S.ver++;
+          render();
+          return;
+        }
+      } catch { /* 서버 없음 → 브라우저 저장 */ }
+    }
+    loadLocal(); render(); return;
+  }
   render();
   let db = null;
   try { db = await c.use('db'); } catch { db = null; }
@@ -367,11 +429,191 @@ async function initStore() {
   S.db = db; S.backend = 'db';
   db.collection('links').onSnapshot((snap) => {
     S.items = new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
-    S.loaded = true;
+    S.loaded = true; S.ver++;
     render();
   }, (e) => {
     toast('저장소 연결이 끊겼습니다. 페이지를 새로 고쳐 주세요. (' + (e && e.code) + ')');
   });
+}
+
+/* ---------- 썸네일·제목 가져오기 (로컬 서버 전용) ---------- */
+const embText = (it) => [it.title, it.summary, it.desc, slugTitle(it.norm)].filter(Boolean).join('\n');
+function needsMeta(it) { return !it.fetched; }
+function needsEmb(it) { return S.server && S.server.ollama === 'ready' && (!it.emb || it.embModel !== S.server.model); }
+
+async function enrichOne(it) {
+  const patch = {};
+  if (needsMeta(it)) {
+    try {
+      const m = await api('POST', '/api/enrich', { url: it.url });
+      Object.assign(patch, { title: m.title || '', summary: m.summary || '', site: m.site || '', thumb: m.thumb || '', fetched: 'ok' });
+    } catch (e) {
+      patch.fetched = 'fail';
+      patch.fetchErr = String(e.message || e).slice(0, 120);
+    }
+  }
+  const next = { ...it, ...patch };
+  if (needsEmb(next)) {
+    try {
+      const r = await api('POST', '/api/embed', { text: embText(next) });
+      patch.emb = r.emb; patch.embModel = r.model;
+    } catch (e) {
+      S.server.ollama = 'off';  // 한 번 실패하면 이번 실행에서는 임베딩을 건너뜀
+    }
+  }
+  if (Object.keys(patch).length) await patchItem(it.id, patch);
+}
+
+async function runEnrich(onlyIds) {
+  if (S.backend !== 'server' || S.enriching) return;
+  const queue = [...S.items.values()].filter((it) => (!onlyIds || onlyIds.has(it.id)) && (needsMeta(it) || needsEmb(it)))
+    .sort((a, b) => (b.first || '').localeCompare(a.first || ''));
+  if (!queue.length) return;
+  S.enriching = { done: 0, total: queue.length };
+  renderEnrich();
+  let lastPaint = 0;
+  const worker = async () => {
+    while (queue.length && S.enriching) {
+      const it = queue.shift();
+      await enrichOne(it).catch(() => {});
+      S.enriching && S.enriching.done++;
+      if (Date.now() - lastPaint > 700) { lastPaint = Date.now(); render(); }
+      else renderEnrich();
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  S.enriching = null;
+  render();
+}
+
+function renderEnrich() {
+  const box = $('enrich');
+  const all = [...S.items.values()];
+  if (!all.length) { box.hidden = true; return; }
+  box.hidden = false;
+  if (S.backend !== 'server') {
+    const has = all.filter((i) => i.thumb || i.title).length;
+    box.innerHTML = `<span class="grow">썸네일과 제목은 PC에서 <code>python server.py</code>를 실행해야 가져올 수 있습니다${has ? ` (${n(has)}개는 이미 있음)` : ''}. 거기서 백업(JSON)을 받아 여기서 불러오면 함께 보입니다.</span>`;
+    return;
+  }
+  const meta = all.filter(needsMeta).length, emb = all.filter(needsEmb).length;
+  const failed = all.filter((i) => i.fetched === 'fail').length;
+  const st = S.server.ollama;
+  const ol = st === 'ready' ? `<span><span class="dot on"></span>관련 자료: ${esc(S.server.model)} 임베딩</span>`
+    : st === 'missing' ? `<span><span class="dot half"></span>관련 자료: 글자 비교 (<code>ollama pull ${esc(S.server.model)}</code> 하면 더 정확)</span>`
+    : `<span><span class="dot"></span>관련 자료: 글자 비교 (Ollama 꺼져 있음)</span>`;
+  const ctl = S.enriching
+    ? `<span class="grow">가져오는 중… ${n(S.enriching.done)}/${n(S.enriching.total)}</span><button class="btn" type="button" id="enStop">멈춤</button>`
+    : meta || emb
+      ? `<span class="grow">${meta ? `정보 없는 링크 ${n(meta)}개` : ''}${meta && emb ? ' · ' : ''}${emb ? `벡터 없는 링크 ${n(emb)}개` : ''}</span><button class="btn primary" type="button" id="enGo">썸네일·제목 가져오기</button>`
+      : `<span class="grow">모든 링크의 정보를 가져왔습니다${failed ? ` (실패 ${n(failed)}개)` : ''}.</span>${failed ? `<button class="btn ghost" type="button" id="enRetry">실패한 것 다시</button>` : ''}`;
+  box.innerHTML = ctl + ol;
+}
+
+/* ---------- 관련 자료 ---------- */
+function decodeEmb(b64) {
+  const bin = atob(b64), v = new Float32Array(bin.length);
+  let s = 0;
+  for (let i = 0; i < bin.length; i++) { const x = (bin.charCodeAt(i) << 24) >> 24; v[i] = x; s += x * x; }
+  const nrm = Math.sqrt(s) || 1;
+  for (let i = 0; i < v.length; i++) v[i] /= nrm;
+  return v;
+}
+
+// 글자 비교: 한글은 2글자 조각, 영문·숫자는 단어 단위로 TF-IDF
+const STOP = new Set(['https', 'http', 'www', 'com', 'html', 'the', 'and', 'for', 'with', 'kr', 'ko', 'en', 'net', 'org', 'models', 'comments', 'watch']);
+function tokens(text) {
+  const out = [];
+  const t = text.toLowerCase();
+  for (const w of t.match(/[a-z][a-z0-9+]{1,}|\d{2,}[a-z]*/g) || []) if (!STOP.has(w)) out.push(w);
+  for (const run of t.match(/[가-힣]+/g) || []) {
+    if (run.length === 1) continue;
+    for (let i = 0; i < run.length - 1; i++) out.push(run.slice(i, i + 2));
+  }
+  return out;
+}
+function buildIndex() {
+  if (S.idx && S.idx.ver === S.ver) return S.idx;
+  const items = [...S.items.values()];
+  const df = new Map(), tf = new Map(), emb = new Map();
+  for (const it of items) {
+    const m = new Map();
+    for (const tk of tokens([it.title, it.summary, it.desc, slugTitle(it.norm)].filter(Boolean).join(' '))) m.set(tk, (m.get(tk) || 0) + 1);
+    tf.set(it.id, m);
+    for (const k of m.keys()) df.set(k, (df.get(k) || 0) + 1);
+    if (it.emb) { try { emb.set(it.id, { model: it.embModel, v: decodeEmb(it.emb) }); } catch {} }
+  }
+  const N = items.length, vec = new Map();
+  for (const [id, m] of tf) {
+    const v = new Map(); let s = 0;
+    for (const [k, c] of m) { const df_ = df.get(k); if (df_ < 2 && N > 3) continue; const w = (1 + Math.log(c)) * Math.log(1 + N / df_); v.set(k, w); s += w * w; }
+    s = Math.sqrt(s) || 1;
+    for (const k of v.keys()) v.set(k, v.get(k) / s);
+    vec.set(id, v);
+  }
+  S.idx = { ver: S.ver, vec, emb };
+  return S.idx;
+}
+function related(id, k = 5) {
+  const ix = buildIndex();
+  const me = S.items.get(id); if (!me) return [];
+  const e = ix.emb.get(id), t = ix.vec.get(id);
+  const out = [];
+  for (const it of S.items.values()) {
+    if (it.id === id) continue;
+    let sim = 0, how = 'txt';
+    const e2 = ix.emb.get(it.id);
+    if (e && e2 && e.model === e2.model && e.v.length === e2.v.length) {
+      for (let i = 0; i < e.v.length; i++) sim += e.v[i] * e2.v[i];
+      how = 'emb';
+    } else if (t) {
+      const t2 = ix.vec.get(it.id);
+      const [a, b] = t.size < t2.size ? [t, t2] : [t2, t];
+      for (const [kk, w] of a) { const w2 = b.get(kk); if (w2) sim += w * w2; }
+    }
+    if (sim >= (how === 'emb' ? 0.55 : 0.12)) out.push({ it, sim, how });
+  }
+  return out.sort((a, b) => b.sim - a.sim).slice(0, k);
+}
+
+/* ---------- 표시용 이름 ---------- */
+const SITE_NAMES = {
+  'reddit.com': 'Reddit', 'makerworld.com': 'MakerWorld', 'youtube.com': 'YouTube', 'printables.com': 'Printables',
+  'thingiverse.com': 'Thingiverse', 'github.com': 'GitHub', 'smartstore.naver.com': '스마트스토어', 'blog.naver.com': '네이버 블로그',
+  'cafe.naver.com': '네이버 카페', 'n.news.naver.com': '네이버 뉴스', 'wiki.bambulab.com': 'Bambu Wiki', 'bambulab.com': 'Bambu Lab',
+  'docs.google.com': 'Google 문서', 'instagram.com': 'Instagram', 'aliexpress.com': 'AliExpress', 'coupang.com': '쿠팡',
+  'klipper3d.org': 'Klipper', 'prusa3d.com': 'Prusa', 'tistory.com': '티스토리',
+};
+function siteName(domain) {
+  if (SITE_NAMES[domain]) return SITE_NAMES[domain];
+  if (/^[\d.:]+$/.test(domain)) return domain;
+  const base = domain.split('.').slice(-2).join('.');
+  if (SITE_NAMES[base]) return SITE_NAMES[base];
+  const parts = domain.split('.');
+  const core = parts.length > 2 && parts[parts.length - 2].length <= 3 ? parts[parts.length - 3] : parts[parts.length - 2] || domain;
+  return core.charAt(0).toUpperCase() + core.slice(1);
+}
+const JUNK_SEG = /^(index|view|viewform|watch|article|articles|post|posts|models?|comments|ko|en|kr|p|v|d|e|s|r|wiki|manual|products?|item|items|detail|amp)$/i;
+// 제목을 못 가져왔을 때 주소의 마지막 의미 있는 조각으로 대신
+function slugTitle(norm) {
+  const path = (norm || '').split('?')[0].split('/').slice(1);
+  let best = '';
+  for (let seg of path) {
+    try { seg = decodeURIComponent(seg); } catch {}
+    seg = seg.replace(/\.(html?|php|aspx?)$/i, '');
+    if (seg.length < 3 || JUNK_SEG.test(seg) || /^[\d_-]+$/.test(seg)) continue;
+    if (/^[A-Za-z0-9_-]{16,}$/.test(seg) && !/[-_]/.test(seg.slice(1, -1))) continue;  // 해시 같은 id
+    const words = seg.replace(/^\d+[-_]/, '').replace(/[-_+]+/g, ' ').trim();
+    if (words.length >= 3 && (/[ ]/.test(words) || words.length > best.length || !best)) best = words;
+  }
+  return best;
+}
+function hueOf(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360; }
+function thumbHtml(it) {
+  const name = esc(siteName(it.domain));
+  const ph = `<span class="ph" style="--h:${hueOf(it.domain)}"><b>${name}</b></span>`;
+  if (!it.thumb) return ph;
+  return `<img src="${esc(it.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=this.dataset.ph" data-ph="${esc(ph)}">`;
 }
 
 /* ---------- 가져오기 분석 ---------- */
@@ -477,16 +719,17 @@ async function savePending() {
     for (const it of jobs) {
       await putItem(it);
       done++;
-      if (S.db && jobs.length > 5) btn.textContent = `저장 중… ${done}/${jobs.length}`;
+      if (S.backend !== 'local' && jobs.length > 5) btn.textContent = `저장 중… ${done}/${jobs.length}`;
     }
-    if (!S.db) saveLocal();
+    persist();
     toast(`새 링크 ${r.fresh.length}개 저장 · 중복 ${r.known.length}개는 건너뜀`);
     S.flash = new Set(r.fresh.map((f) => f.id));
     S.pending = null;
     $('preview').hidden = true;
     render();
+    runEnrich(new Set(r.fresh.map((f) => f.id)));
   } catch (e) {
-    if (!S.db) saveLocal();
+    persist();
     btn.disabled = false;
     btn.textContent = '이어서 저장';
     toast(`${done}/${jobs.length}개까지 저장했습니다. ` + (e && e.code === 'quota_exceeded' ? '저장 공간이 가득 찼습니다.' : '다시 눌러 이어서 저장하세요.'));
@@ -519,17 +762,19 @@ async function quickAdd() {
   const desc = describe(v);
   try {
     await putItem({ id, url: /^https?:/i.test(url) ? url : 'https://' + url, norm, domain: hostOf(norm), desc, first: date, last: date, seen: [date + '|' + norm], read: false, added: d.toISOString() });
-    if (!S.db) saveLocal();
+    persist();
     $('quick').value = '';
     S.flash = new Set([id]);
     render(); quickCheck();
     toast('추가했습니다');
+    runEnrich(new Set([id]));
   } catch { toast('저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'); }
 }
 
 /* ---------- 목록 렌더 ---------- */
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const n = (x) => Number(x).toLocaleString('ko-KR');
+const clip = (s, k) => (s.length > k ? s.slice(0, k) + '…' : s);
 let shown = PAGE, armed = null;
 
 function render() {
@@ -537,8 +782,9 @@ function render() {
   $('stTotal').textContent = n(all.length);
   $('stUnread').textContent = n(all.filter((i) => !i.read).length);
   $('stDup').textContent = n(all.reduce((s, i) => s + Math.max(0, (i.seen || []).length - 1), 0));
-  $('stStore').textContent = S.backend === 'db' ? '· 계정에 저장됨' : S.backend === 'local' ? '· 이 브라우저에 저장됨' : '불러오는 중…';
-  $('foot').textContent = S.backend === 'db' ? '어느 기기에서 열어도 같은 목록이 보입니다.' : S.backend === 'local' ? '이 브라우저에만 저장됩니다. 가끔 백업(JSON)을 받아 두세요.' : '';
+  $('stStore').textContent = { db: '· 계정에 저장됨', server: '· PC의 links.json에 저장됨', local: '· 이 브라우저에 저장됨' }[S.backend] || '불러오는 중…';
+  $('foot').textContent = { db: '어느 기기에서 열어도 같은 목록이 보입니다.', server: 'server.py 옆 links.json 파일에 저장됩니다.', local: '이 브라우저에만 저장됩니다. 가끔 백업(JSON)을 받아 두세요.' }[S.backend] || '';
+  renderEnrich();
 
   // 사이트 필터
   const domSel = $('dom'), curDom = domSel.value;
@@ -562,7 +808,7 @@ function render() {
   const q = $('q').value.trim().toLowerCase();
   const dom = domSel.value, onlyUnread = $('unread').checked, sort = $('sort').value;
   let rows = all.filter((i) => (!dom || i.domain === dom) && (!onlyUnread || !i.read) &&
-    (!q || (i.desc || '').toLowerCase().includes(q) || (i.norm || '').includes(q)));
+    (!q || [i.title, i.summary, i.desc, i.site, i.norm].some((x) => (x || '').toLowerCase().includes(q))));
   const byDate = (a, b) => (a.first || '').localeCompare(b.first || '');
   if (sort === 'old') rows.sort(byDate);
   else if (sort === 'rep') rows.sort((a, b) => (b.seen || []).length - (a.seen || []).length || byDate(b, a));
@@ -579,19 +825,33 @@ function render() {
       html += `<div class="month">${mo ? mo.replace('-', '년 ') + '월' : '날짜 없음'}</div><ul class="items">`;
     } else if (month === null && html === '') html += '<ul class="items">';
     const rep = (i.seen || []).length;
-    const title = i.desc || i.norm;
+    const title = i.title || i.desc || slugTitle(i.norm) || i.norm;
+    const kakao = i.title && i.desc && i.desc !== i.title ? i.desc : '';
     const path = i.norm.slice(i.domain.length) || '/';
+    const site = i.site || siteName(i.domain);
+    const open = S.open.has(i.id);
+    let relHtml = '';
+    if (open) {
+      const rs = related(i.id);
+      relHtml = `<div class="rel"><h3>관련 자료 ${rs.length ? (rs[0].how === 'emb' ? '· 의미 비교' : '· 글자 비교') : ''}</h3>` +
+        (rs.length ? rs.map((r) => `<a href="#it-${r.it.id}" data-jump="${r.it.id}"><span class="thumb">${thumbHtml(r.it)}</span><span class="rt">${esc(clip(r.it.title || r.it.desc || slugTitle(r.it.norm) || r.it.norm, 90))}</span><span class="sim">${Math.round(r.sim * 100)}%</span></a>`).join('')
+          : `<span style="font-size:.86rem;color:var(--muted)">비슷한 링크를 찾지 못했습니다.${i.title ? '' : ' 제목을 가져오면 더 잘 찾습니다.'}</span>`) + '</div>';
+    }
     html += `<li class="item${i.read ? ' read' : ''}${S.flash && S.flash.has(i.id) ? ' flash' : ''}" id="it-${i.id}">
-      <span class="date">${esc((i.first || '').slice(2, 10).replace(/-/g, '.'))}</span>
+      <a class="thumb" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer" data-open="${i.id}" tabindex="-1" aria-hidden="true">${thumbHtml(i)}</a>
       <div class="body">
-        <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer" data-open="${i.id}">${esc(title.length > 140 ? title.slice(0, 140) + '…' : title)}</a>
-        <span class="url"><span class="dom">${esc(i.domain)}</span>${esc(path.length > 70 ? path.slice(0, 70) + '…' : path)}</span>
-        ${rep > 1 ? `<span class="rep" title="${esc((i.seen || []).map((k) => k.split('|')[0]).join('\n'))}">${rep}번 올라옴 · 마지막 ${esc((i.last || '').slice(0, 10))}</span>` : ''}
+        <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer" data-open="${i.id}">${esc(clip(title, 140))}</a>
+        ${i.summary ? `<span class="sum">${esc(i.summary)}</span>` : ''}
+        ${kakao ? `<span class="kakao">${esc(kakao)}</span>` : ''}
+        <span class="meta">${esc((i.first || '').slice(0, 10).replace(/-/g, '.'))} · ${esc(site)}${rep > 1 ? ` · <span class="rep" title="${esc((i.seen || []).map((k) => k.split('|')[0]).join('\n'))}">${rep}번 올라옴</span>` : ''}</span>
+        <span class="url">${esc(i.domain)}${esc(clip(path, 70))}</span>
       </div>
       <div class="acts">
-        <button class="btn ghost" type="button" data-read="${i.id}">${i.read ? '안 읽음으로' : '읽음'}</button>
+        <button class="btn ghost" type="button" data-rel="${i.id}" aria-expanded="${open}">${open ? '관련 접기' : '관련'}</button>
+        <button class="btn ghost" type="button" data-read="${i.id}">${i.read ? '안 읽음' : '읽음'}</button>
         <button class="btn ghost${armed === i.id ? ' del-confirm' : ''}" type="button" data-del="${i.id}">${armed === i.id ? '정말 삭제' : '삭제'}</button>
       </div>
+      ${relHtml}
     </li>`;
   }
   html += '</ul>';
@@ -620,8 +880,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 function exportCsv() {
   const q = (s) => '"' + String(s ?? '').replace(/"/g, '""') + '"';
   const rows = [...S.items.values()].sort((a, b) => (a.first || '').localeCompare(b.first || ''));
-  const csv = '\uFEFF' + ['처음 올라온 날짜,마지막,횟수,사이트,설명,링크,읽음']
-    .concat(rows.map((i) => [i.first, i.last, (i.seen || []).length, i.domain, i.desc, i.url, i.read ? 'Y' : ''].map(q).join(','))).join('\r\n');
+  const csv = '\uFEFF' + ['처음 올라온 날짜,마지막,횟수,사이트,제목,카톡 설명,링크,읽음']
+    .concat(rows.map((i) => [i.first, i.last, (i.seen || []).length, i.domain, i.title, i.desc, i.url, i.read ? 'Y' : ''].map(q).join(','))).join('\r\n');
   offerFile(`쩡마술사_링크_${today()}.csv`, csv, 'text/csv');
 }
 function exportJson() {
@@ -640,14 +900,18 @@ async function importJson(file) {
       const old = S.items.get(id);
       if (!old) { await putItem({ ...raw, id, norm, domain: hostOf(norm) }); added++; continue; }
       const seen = [...new Set([...(old.seen || []), ...(raw.seen || [])])].sort().slice(-MAX_SEEN);
-      if (seen.length !== (old.seen || []).length) {
+      // 다른 곳(로컬 서버)에서 가져온 제목·썸네일·벡터는 비어 있는 쪽을 채움
+      const extra = {};
+      for (const k of ['title', 'summary', 'site', 'thumb', 'fetched']) if (!old[k] && raw[k]) extra[k] = raw[k];
+      if (raw.emb && (!old.emb || old.embModel !== raw.embModel)) { extra.emb = raw.emb; extra.embModel = raw.embModel; }
+      if (seen.length !== (old.seen || []).length || Object.keys(extra).length) {
         const [first, last] = firstLast(seen);
-        await putItem({ ...old, seen, first, last, read: old.read || !!raw.read });
+        await putItem({ ...old, ...extra, seen, first, last, read: old.read || !!raw.read });
         merged++;
       }
     }
   } finally {
-    if (!S.db) saveLocal();
+    persist();
     render();
     toast(`백업에서 ${added}개 추가, ${merged}개 합침`);
   }
@@ -713,23 +977,21 @@ $('qres').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.id === 'quickAdd') quickAdd();
-  else if (b.dataset.goto) {
-    $('q').value = ''; $('dom').value = ''; $('unread').checked = false; shown = Infinity;
-    S.flash = new Set([b.dataset.goto]); render();
-    const el = document.getElementById('it-' + b.dataset.goto);
-    if (el) el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  }
+  else if (b.dataset.goto) jumpTo(b.dataset.goto);
 });
 
 ['q', 'dom', 'sort', 'unread'].forEach((id) => $(id).addEventListener(id === 'q' ? 'input' : 'change', () => { shown = PAGE; render(); }));
 
 $('list').addEventListener('click', async (e) => {
+  const j = e.target.closest('[data-jump]');
+  if (j) { e.preventDefault(); jumpTo(j.dataset.jump); return; }
   const a = e.target.closest('[data-open]');
   if (a) { const it = S.items.get(a.dataset.open); if (it && !it.read) patchItem(it.id, { read: true }).then(render, () => {}); return; }
   const b = e.target.closest('button');
   if (!b) return;
   if (b.id === 'more') { shown += PAGE; render(); return; }
   try {
+    if (b.dataset.rel) { S.open.has(b.dataset.rel) ? S.open.delete(b.dataset.rel) : S.open.add(b.dataset.rel); render(); return; }
     if (b.dataset.read) { const it = S.items.get(b.dataset.read); await patchItem(it.id, { read: !it.read }); render(); }
     else if (b.dataset.del) {
       if (armed === b.dataset.del) { armed = null; await delItem(b.dataset.del); render(); toast('삭제했습니다'); }
@@ -738,12 +1000,30 @@ $('list').addEventListener('click', async (e) => {
   } catch { toast('저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'); }
 });
 
+$('enrich').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'enGo') runEnrich();
+  else if (b.id === 'enStop') { S.enriching = null; render(); }
+  else if (b.id === 'enRetry') {
+    Promise.all([...S.items.values()].filter((i) => i.fetched === 'fail').map((i) => patchItem(i.id, { fetched: '' })))
+      .then(() => runEnrich(), () => toast('다시 시도하지 못했습니다.'));
+  }
+});
+
+function jumpTo(id) {
+  $('q').value = ''; $('dom').value = ''; $('unread').checked = false; shown = Infinity;
+  S.flash = new Set([id]); render();
+  const el = document.getElementById('it-' + id);
+  if (el) el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
 $('expCsv').addEventListener('click', exportCsv);
 $('expJson').addEventListener('click', exportJson);
 $('impJson').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importJson(f); e.target.value = ''; });
 
 // 테스트용 노출 (node에서 파서 검증)
-if (typeof window !== 'undefined') window.__linkArchive = { parseChat, extractUrls, normUrl, hid };
+if (typeof window !== 'undefined') window.__linkArchive = { parseChat, extractUrls, normUrl, hid, slugTitle, related, S };
 initStore();
 })();
 </script>
