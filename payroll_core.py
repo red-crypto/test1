@@ -235,8 +235,9 @@ def match_pdf(pdf_path: Path, emp: pd.DataFrame, target_ym: str) -> dict:
     if not res["email"]:
         res["reason"] = f"명부에 '{info['name']}'의 이메일이 비어 있습니다."
         return res
-    if not is_valid_email(res["email"]):
-        res["reason"] = f"이메일 형식이 올바르지 않습니다: {res['email']}"
+    problem = email_problem(res["email"])      # ; , 가 섞이면 엉뚱한 사람에게도 갈 수 있어 발송 불가
+    if problem:
+        res["reason"] = f"명부의 '{info['name']}' 이메일 문제: {problem}"
         return res
 
     # (5) 귀속월 검증 — 대상 월과 다르면 '경고'(막지는 않되 눈에 띄게)
@@ -341,10 +342,9 @@ def validate_mapping(emp: pd.DataFrame):
             else:
                 seen_birth[birth] = excel_row
 
-        if not email:
-            problems.append((excel_row, who, "이메일이 비어 있습니다."))
-        elif not is_valid_email(email):
-            problems.append((excel_row, who, f"이메일 형식이 올바르지 않습니다: '{email}'"))
+        problem = email_problem(email)
+        if problem:
+            problems.append((excel_row, who, problem))
 
     return problems
 
@@ -524,11 +524,47 @@ class FriendlyError(Exception):
     pass
 
 
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# ------------------------------------------------------------
+# 메일 주소 검사 — "주소 딱 하나"인지 엄격하게 본다 (v1.1.1)
+# ------------------------------------------------------------
+# Outlook은 받는 사람 칸의 ; 와 , 를 구분 기호로 보고 여러 명으로 나눈다.
+#   예) 'hong@example.com;이몽룡' → hong 말고도 주소록에서 '이몽룡'을 찾아 그 사람에게도 보냄
+#       → 다른 직원 명세서가 엉뚱한 사람에게 가는 개인정보 사고 (비밀번호는 생년월일 6자리라 약함)
+# 예전 검사(^[^@\s]+@[^@\s]+\.[^@\s]+$)는 ; 와 꺾쇠(<>)를 허용해서 위 값이 통과했다.
+# → 아이디는 영문·숫자·. _ % + - 만, 도메인은 영문·숫자·하이픈 이름들 + 영문 최상위 도메인만 허용.
+#   (드물게 쓰는 특수문자 주소는 막히지만, 급여명세서 발송에는 안전한 쪽을 택한다)
+EMAIL_RE = re.compile(
+    r"[A-Za-z0-9._%+\-]+"                                   # 아이디
+    r"@"
+    r"(?:[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?\.)+"    # 도메인 이름들 (example.)
+    r"[A-Za-z]{2,}"                                         # 최상위 도메인 (com, kr 등)
+)
+_EMAIL_SEPARATORS = (";", ",")
 
 
-def is_valid_email(addr: str) -> bool:
-    return bool(EMAIL_RE.match(str(addr).strip()))
+def email_problem(addr):
+    """
+    메일 주소의 문제를 사람 말로 돌려준다. 문제가 없으면 None.
+    (명부 검증, 미리보기, 테스트 수신자 검사가 모두 이 함수를 쓴다)
+    """
+    s = str(addr if addr is not None else "").strip()
+    if not s:
+        return "이메일이 비어 있습니다."
+    if any(sep in s for sep in _EMAIL_SEPARATORS):
+        return (f"이메일 칸에 구분 기호(; 또는 ,)가 있습니다: '{s}'\n"
+                f"Outlook이 여러 명으로 나눠 다른 사람에게도 보낼 수 있습니다. 한 칸에 주소 하나만 넣으세요.")
+    if s.count("@") != 1:
+        return f"이메일에는 @가 하나만 있어야 합니다: '{s}'"
+    local = s.split("@", 1)[0]
+    if (not EMAIL_RE.fullmatch(s) or ".." in s
+            or local.startswith(".") or local.endswith(".")):
+        return (f"이메일 형식이 올바르지 않습니다: '{s}'\n"
+                f"이름·꺾쇠(<>)·공백 없이 영문 주소 하나만 넣으세요. 예: hong@example.com")
+    return None
+
+
+def is_valid_email(addr) -> bool:
+    return email_problem(addr) is None
 
 
 def _mask_birth(birth: str) -> str:

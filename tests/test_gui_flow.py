@@ -61,7 +61,17 @@ class NewMail:
         self.OriginatorDeliveryReportRequested = False
         self.DeleteAfterSubmit = None
         self.SaveSentMessageFolder = None
+        self.closed = False
         ns.created.append(self)
+
+    @property
+    def Recipients(self):
+        """실제 Outlook처럼 To 칸을 ; , 로 나눠 받는 사람 목록을 만든다."""
+        parts = [p.strip() for p in self.To.replace(",", ";").split(";") if p.strip()]
+        return tc._Coll([tc._Rcpt(p) for p in parts])
+
+    def Close(self, mode):
+        self.closed = True
 
     def Add(self, path):
         self._files.append(Path(path).name)
@@ -122,14 +132,19 @@ class Env:
         self.base = self.root / "base"
         shutil.copytree(ROOT / "tests" / "fixtures" / "202610", self.base / "202610")
         (self.base / "202611").mkdir()
+        self.mapping = self.root / "mapping.xlsx"
+        self.write_mapping()
+        self.appdir = self.root / "app"
+        self.reset_appdir()
+
+    def write_mapping(self, emails=None):
+        """명부 작성. emails={이름: 바꿀 이메일} 로 특정 직원 주소만 바꿀 수 있다."""
+        import openpyxl
         wb = openpyxl.Workbook(); ws = wb.active
         ws.append(["생년월일", "이름", "이메일"])
         for name, birth, mail in PEOPLE:
-            ws.append([birth, name, mail])
-        self.mapping = self.root / "mapping.xlsx"
+            ws.append([birth, name, (emails or {}).get(name, mail)])
         wb.save(self.mapping)
-        self.appdir = self.root / "app"
-        self.reset_appdir()
 
     def reset_appdir(self):
         if self.appdir.exists():
@@ -302,7 +317,51 @@ def s7_all_missing(env):
           and "보낸 편지함에 메시지 복사본 저장" in POPUPS[-1][2], "원인 후보(설정 등)를 안내")
 
 
-SCENARIOS = [s1_normal, s2_october, s3_stuck, s4_test_draft, s5_guards, s6_locked_csv, s7_all_missing]
+def s8_multi_recipient(env):
+    """이메일 칸에 ; 가 섞인 경우 → 엉뚱한 사람에게 가지 않게 막기 (v1.1.1)"""
+    env.write_mapping({"홍길동": "hong@example.com;이몽룡"})
+    try:
+        ns = NS(); app = env.app(ns); app._do_preview()
+        hong = next(i for i in app.rows if app.rows[i]["name"] == "홍길동")
+        check(app.rows[hong]["status"] == g.STATUS_FAIL and "구분 기호" in app.rows[hong]["reason"]
+              and not app.checked[hong], "명부 이메일에 ; → 그 직원은 '실패'(발송 불가) + 이유 안내")
+        POPUPS.clear(); app._do_send()
+        sent_to = {r._smtp for m in ns.f[5].mails for r in m.Recipients._xs}
+        check(sent_to == {"lee@example.com", "sung@example.com"}, "나머지 2명만 발송, 주소록 이름으로 새는 메일 없음")
+
+        env.reset_appdir(); env.write_mapping()
+        ns = NS(); app = env.app(ns); app._do_preview()
+        app.test_var.set("me@example.com;사장님")
+        try:
+            app._do_send(); check(False, "테스트 수신자에 ; 가 있으면 발송이 막혀야 함")
+        except g.FriendlyError as e:
+            check("구분 기호" in str(e), "테스트 수신자에 ; → 발송 전체 차단")
+        check(not ns.created and not ns.f[5].mails, "차단 시 메일을 하나도 만들지 않음")
+    finally:
+        env.write_mapping()
+
+
+def s9_recipient_guard(env):
+    """주소 검사를 통과해도 Outlook이 여러 명으로 해석하면 그 메일은 보내지 않음 (v1.1.1)"""
+    env.write_mapping({"홍길동": "hong@example.com;lee"})
+    real = pc.email_problem
+    pc.email_problem = lambda addr: None          # 주소 검사가 놓친 상황을 일부러 만든다
+    try:
+        ns = NS(); app = env.app(ns); app._do_preview()
+        POPUPS.clear(); app._do_send()
+    finally:
+        pc.email_problem = real
+        env.write_mapping()
+    sent_to = {r._smtp for m in ns.f[5].mails for r in m.Recipients._xs}
+    check("lee" not in sent_to and "hong@example.com" not in sent_to,
+          "받는 사람이 2명으로 해석된 메일은 발송·초안 모두 안 함")
+    check(sent_to == {"lee@example.com", "sung@example.com"}, "다른 직원은 정상 발송")
+    check(any(m.closed for m in ns.created), "보내지 않은 메일은 저장 없이 닫음")
+    check(("홍길동", pc.RESULT_FAIL) in env.csv_rows(), "발송기록에 '실패'로 남김")
+
+
+SCENARIOS = [s1_normal, s2_october, s3_stuck, s4_test_draft, s5_guards, s6_locked_csv, s7_all_missing,
+             s8_multi_recipient, s9_recipient_guard]
 
 
 def main() -> int:

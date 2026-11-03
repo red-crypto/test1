@@ -188,6 +188,17 @@ def run_no_pdf() -> bool:
     check(any("중복" in p[2] for p in probs), "생년월일 중복 검출")
     check(any("이메일" in p[2] for p in probs), "이메일 오류 검출")
 
+    print("메일 주소 검사 — 주소 하나만 (v1.1.1)")
+    # Outlook은 ; , 를 구분 기호로 보고 여러 명으로 나눈다 → 엉뚱한 사람에게도 갈 수 있음
+    for a in ("hong@example.com;이몽룡", "hong@example.com;lee", "hong@example.com;",
+              "a@example.com, lee", "홍길동<hong@example.com>", "hong@example", "ho..ng@example.com"):
+        check(not pc.is_valid_email(a), f"거부: {a!r}")
+    for a in ("hong@example.com", "hong.gil-dong+pay@example.co.kr"):
+        check(pc.is_valid_email(a), f"허용: {a!r}")
+    semi = pd.DataFrame([{"생년월일": FAKE_BIRTH, "이름": FAKE_NAME, "이메일": "hong@example.com;이몽룡"}])
+    check(any("구분 기호" in p[2] for p in pc.validate_mapping(semi)),
+          "명부 검증: ; 섞인 이메일을 '구분 기호' 문제로 안내")
+
     print("템플릿 렌더링")
     subj, body = pc.render_template(pc.DEFAULT_TEMPLATE, FAKE_NAME, "202607")
     check("2026년 07월" in subj and FAKE_NAME in body, "치환 정상")

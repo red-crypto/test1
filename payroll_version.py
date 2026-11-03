@@ -13,4 +13,4 @@
 * 변경 내역은 CHANGELOG.md 에 버전별로 적는다(배포 페이지 설명으로 그대로 쓰인다).
 """
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"

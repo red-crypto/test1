@@ -864,8 +864,10 @@ class App(tk.Tk):
             raise FriendlyError("발송하도록 선택(체크)된 직원이 없습니다.")
 
         test_mail = self.test_var.get().strip()
-        if test_mail and not pc.is_valid_email(test_mail):
-            raise FriendlyError(f"테스트 수신자 이메일 형식이 올바르지 않습니다: {test_mail}")
+        problem = pc.email_problem(test_mail) if test_mail else None
+        if problem:
+            # 테스트 주소에 ; 가 섞이면 모든 직원 명세서가 다른 사람에게도 갈 수 있다
+            raise FriendlyError(f"테스트 수신자 이메일 문제: {problem}")
 
         # 사전 암호화 + 검증 (선택 배치는 전량 성공해야 발송)
         self.w(f"\n=== 암호화 + 검증 (선택 {len(targets)}건) ===")
@@ -943,6 +945,21 @@ class App(tk.Tk):
                 try:
                     m = outlook.CreateItem(0)       # 0 = MailItem
                     m.To = recipient
+                    # 받는 사람이 1명인지 Outlook 기준으로 한 번 더 확인한다.
+                    # 주소 검사를 통과했더라도 Outlook이 여러 명으로 나눠 해석하면
+                    # 다른 사람에게도 가므로 이 메일은 보내지 않는다(초안도 띄우지 않음).
+                    try:
+                        n_rcpt = int(m.Recipients.Count)
+                    except Exception:
+                        n_rcpt = 1                  # 개수를 못 읽으면 위 주소 검사를 믿는다
+                    if n_rcpt > 1:
+                        try:
+                            m.Close(1)              # 1 = 저장하지 않고 닫기
+                        except Exception:
+                            pass
+                        raise FriendlyError(
+                            f"받는 사람이 {n_rcpt}명으로 해석되어 보내지 않았습니다('{recipient}'). "
+                            f"명부 이메일을 확인하세요.")
                     m.Subject = subject
                     m.Body = body
                     m.Attachments.Add(str(r["enc"].resolve()))
