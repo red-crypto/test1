@@ -40,6 +40,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 
 import payroll_core as pc
+from payroll_version import APP_VERSION   # 버전은 payroll_version.py 한 곳에서만 관리
 from payroll_core import (
     STATUS_OK, STATUS_WARN, STATUS_FAIL,
     RESULT_SENT, RESULT_DRAFT, RESULT_TEST, RESULT_FAIL,
@@ -88,7 +89,7 @@ FONT_H2   = ("맑은 고딕", 11, "bold")
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("급여명세서 발송기")
+        self.title(f"급여명세서 발송기 v{APP_VERSION}")
         self.geometry("1040x760")
         self.minsize(940, 640)
         self.configure(bg=BG)
@@ -194,6 +195,9 @@ class App(tk.Tk):
                  font=FONT_H1).pack(side="left", padx=10, pady=12)
         tk.Label(head, text="3중 교차검증(생년월일·본문이름·파일명)으로 안전하게 발송",
                  bg=PRIMARY, fg="#dbeafe", font=FONT_SM).pack(side="left", pady=12)
+        # 버전 표시 — 대표님 PC에 깔린 exe가 어느 버전인지 바로 확인용
+        tk.Label(head, text=f"v{APP_VERSION}  ", bg=PRIMARY, fg="#dbeafe",
+                 font=FONT_SM).pack(side="right", pady=12)
 
         wrap = tk.Frame(self, bg=BG)
         wrap.pack(fill="x", pady=(12, 0))
@@ -726,7 +730,7 @@ class App(tk.Tk):
             return
 
         raw = pc.load_template(TEMPLATE_PATH)
-        self.w("\n=== 발송 ===")
+        self.w(f"\n=== 발송 (프로그램 v{APP_VERSION}) ===")
         try:
             import win32com.client as win32
             import pythoncom

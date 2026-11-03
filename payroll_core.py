@@ -67,7 +67,7 @@ def load_mapping(path: Path) -> pd.DataFrame:
     for c in emp.columns:
         emp[c] = emp[c].astype(str).str.strip()
 
-    # 생년월일은 숫자만 남긴다 (엑셀에서 '930124' 앞의 아포스트로피/공백 대비)
+    # 생년월일은 숫자만 남긴다 (엑셀에서 '900101' 앞의 아포스트로피/공백 대비)
     emp["생년월일"] = emp["생년월일"].str.replace(r"\D", "", regex=True)
     return emp
 
@@ -78,12 +78,12 @@ def load_mapping(path: Path) -> pd.DataFrame:
 # 아래 패턴은 실제 샘플로 검증됨.
 #   본문 예:
 #     2026년 07월분 임금명세서
-#     성 명 :김도영    생년월일(사번) :930124(48)    지 급 일 :2026.07.31
+#     성 명 :홍길동    생년월일(사번) :900101(12)    지 급 일 :2026.07.31
 RE_NAME    = re.compile(r"성\s*명\s*:\s*([가-힣]{2,5})")
 RE_BIRTH   = re.compile(r"생년월일\s*\(\s*사번\s*\)\s*:\s*(\d{6})(?:\s*\(\s*(\d+)\s*\))?")
 RE_PAYDATE = re.compile(r"지\s*급\s*일\s*:\s*([\d.]+)")
 RE_MONTH   = re.compile(r"(\d{4})\s*년\s*(\d{2})\s*월분")
-# 파일명에서 이름 추출: '임금명세서_김도영_.pdf' 형태를 우선 시도.
+# 파일명에서 이름 추출: '임금명세서_홍길동_.pdf' 형태를 우선 시도.
 RE_FNAME_NAME = re.compile(r"임금명세서[_\s]*([가-힣]{2,5})")
 
 
@@ -465,7 +465,7 @@ def is_valid_email(addr: str) -> bool:
 
 
 def _mask_birth(birth: str) -> str:
-    """로그/화면 안내용 생년월일 마스킹. 예: 930124 -> 9301** (전체 노출 금지)."""
+    """로그/화면 안내용 생년월일 마스킹. 예: 900101 -> 9001** (전체 노출 금지)."""
     b = str(birth)
     if len(b) == 6:
         return b[:4] + "**"

@@ -80,11 +80,13 @@
 
 ### 구조
 ```
-payroll_core.py   ← 매칭/파싱/암호화/명부검증/로그/템플릿 (tkinter·win32 비의존, 단독 테스트 가능)
-payroll_gui.py    ← Tkinter GUI (payroll_core 사용)
-payroll_sender.py ← CLI 참고용 (payroll_core 공유)
-test_core.py      ← 회귀 테스트
-template.txt      ← 메일 문구
+payroll_core.py    ← 매칭/파싱/암호화/명부검증/로그/템플릿 (tkinter·win32 비의존, 단독 테스트 가능)
+payroll_gui.py     ← Tkinter GUI (payroll_core 사용)
+payroll_sender.py  ← CLI 참고용 (payroll_core 공유)
+payroll_version.py ← 프로그램 버전 (한 곳에서만 관리)
+test_core.py       ← 회귀 테스트
+template.txt       ← 메일 문구
+CHANGELOG.md       ← 버전별 변경 내역 (배포 페이지 설명으로 쓰임)
 ```
 
 ### 설치 / 테스트
@@ -106,7 +108,10 @@ Windows 러너에서 자동으로 빌드합니다.
 
 1. GitHub 저장소 → **Actions** 탭 → **exe 빌드** 워크플로 선택
 2. 최신 실행 결과 클릭 → 하단 **Artifacts**에서 `급여명세서발송기-windows` 다운로드
-3. 압축을 풀면 `급여명세서발송기.exe` + `template.txt` + `mapping_예시.xlsx` + `README.md`
+3. 압축을 풀면 `급여명세서발송기.exe` + `template.txt` + `mapping_예시.xlsx` + `README.md` + `CHANGELOG.md`
+
+> 아티팩트는 **30일 후 삭제**되는 테스트용 빌드입니다. 대표님 PC에 넣을 exe는
+> 아래 **버전 관리 / 배포**의 배포 페이지(Releases)에서 받으세요.
 
 수동 실행은 Actions 탭의 **Run workflow** 버튼으로도 가능합니다.
 
@@ -130,6 +135,35 @@ ren dist\PayrollSender.exe 급여명세서발송기.exe
 `config.json` / `template.txt` / `발송기록_*.csv`는 `sys.frozen` 여부에 따라
 **exe 옆 경로**에 저장됩니다. 대표님 PC로는 **exe 하나만** 옮겨도 동작합니다
 (`template.txt`는 첫 실행 시 자동 생성).
+
+### 버전 관리 / 배포 (패치마다 따로 관리)
+
+배포할 exe는 **버전별 배포 페이지(GitHub Releases)**에서 받습니다.
+각 배포 페이지에는 그 버전의 **exe(zip)**와 **소스 코드**가 함께 있고, Actions 아티팩트와
+달리 **기한이 지나도 삭제되지 않습니다.**
+
+| 무엇 | 어디 | 용도 |
+|------|------|------|
+| `release/vX.Y.Z` 브랜치 | 저장소 브랜치 | 그 버전의 소스 (나중에 그 버전 기준으로 급히 고칠 때) |
+| `vX.Y.Z` 태그 | 저장소 태그 | 배포한 정확한 커밋 표시 |
+| 배포 페이지 | 저장소 → **Releases** | exe + 소스 코드 다운로드, 변경 내역 |
+
+현재 대표님 PC에 깔린 버전은 **창 제목**(`급여명세서 발송기 v1.0.1`)에서 확인합니다.
+
+**새 패치를 내는 순서:**
+1. 개발 브랜치에서 수정 → `python test_core.py` 통과 확인
+2. `payroll_version.py`의 `APP_VERSION`을 올린다 (예: `1.0.1` → `1.0.2`)
+3. `CHANGELOG.md` 맨 위에 `## [v1.0.2] - YYYY-MM-DD` 항목을 쓴다
+4. 커밋 후 버전 브랜치와 태그를 만들어 푸시한다
+   ```bash
+   git branch release/v1.0.2
+   git push origin release/v1.0.2
+   git tag -a v1.0.2 -m "v1.0.2"
+   git push origin v1.0.2
+   ```
+5. 태그 푸시가 끝나면 Actions가 자동으로 빌드하고 배포 페이지를 만든다
+   - 태그와 `APP_VERSION`이 다르거나 `CHANGELOG.md`에 해당 항목이 없으면 **빌드가 실패**한다
+     (버전 표시가 틀린 exe가 배포되는 사고 방지)
 
 ### 검증된 파싱 패턴 (payroll_core.py)
 | 필드 | 정규식 |
@@ -157,7 +191,7 @@ ren dist\PayrollSender.exe 급여명세서발송기.exe
 샘플이 1건뿐이라 아래는 **여러 직원 파일 확보 후** 확인이 필요합니다.
 (현재 설계는 아래가 어떻든 안전하도록 방어적으로 동작합니다.)
 
-- `생년월일(사번)` 뒤 괄호 숫자(예: `930124(48)`의 `48`)의 의미 —
+- `생년월일(사번)` 뒤 괄호 숫자(예: `YYMMDD(NN)`의 `NN`)의 의미 —
   현재는 참고용으로만 추출. 고유값으로 확인되면 동명이인+동일 생년월일 충돌을
   완전히 없애는 4번째 자물쇠로 승격 가능.
 - 동명이인 / 생년월일 중복 존재 여부 — 명부 검증 버튼이 중복을 잡아냄.
