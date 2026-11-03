@@ -13,6 +13,7 @@ on:
     tags: ["v*"]
     paths:
       - "payroll_*.py"
+      - "build.py"
       - "test_core.py"
       - "requirements.txt"
       - "CHANGELOG.md"
@@ -50,49 +51,11 @@ jobs:
           python .github/scripts/release_notes.py check "${{ github.ref_name }}"
           python .github/scripts/release_notes.py notes "${{ github.ref_name }}"
 
-      - name: 의존 패키지 설치
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: 핵심 로직 스모크 테스트 (PDF 없이 가능한 검사)
-        run: python test_core.py
-
-      - name: exe 빌드
-        # --onefile   : 단일 실행파일
-        # --windowed  : 콘솔 창 숨김(GUI 전용)
-        # --hidden-import win32timezone : pywin32 빌드 시 누락되는 모듈
-        # --collect-data pdfminer       : pdfplumber가 쓰는 pdfminer cmap 데이터 포함
-        # 이름은 일단 ASCII로 빌드한 뒤 아래에서 한글로 바꾼다
-        #   (PyInstaller에 비ASCII --name을 주면 환경에 따라 실패하는 경우가 있음)
-        run: |
-          pyinstaller --noconfirm --clean --onefile --windowed `
-            --name PayrollSender `
-            --hidden-import win32timezone `
-            --collect-data pdfminer `
-            payroll_gui.py
-
-      - name: 결과 확인 + 한글 이름으로 변경
-        shell: pwsh
-        run: |
-          $exe = "dist\PayrollSender.exe"
-          if (!(Test-Path $exe)) { throw "빌드 실패: $exe 가 생성되지 않았습니다." }
-          $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-          Write-Host "빌드 성공: $exe ($sizeMB MB)"
-          Rename-Item $exe "급여명세서발송기.exe"
-          Get-ChildItem dist
-
-      - name: 배포용 파일 모으기
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path package | Out-Null
-          Copy-Item "dist\급여명세서발송기.exe" package\
-          Copy-Item template.txt        package\
-          Copy-Item mapping_예시.xlsx    package\
-          Copy-Item README.md           package\
-          Copy-Item CHANGELOG.md        package\
-          Get-ChildItem package
+      - name: exe 빌드 (build.py — 로컬과 같은 스크립트, 같은 옵션)
+        # 패키지 설치 → 필수 모듈 확인(win32com·tkinter 등) → 로직 점검 →
+        # PyInstaller 빌드 → exe 내용 확인 → 한글 이름 변경 → package/ 묶음
+        # PyInstaller 옵션은 build.py 한 곳에서만 관리한다.
+        run: python build.py --no-pause
 
       - name: exe 업로드 (Actions 탭에서 다운로드)
         uses: actions/upload-artifact@v4

@@ -84,6 +84,7 @@ payroll_core.py    ← 매칭/파싱/암호화/명부검증/로그/템플릿 (tk
 payroll_gui.py     ← Tkinter GUI (payroll_core 사용)
 payroll_sender.py  ← CLI 참고용 (payroll_core 공유)
 payroll_version.py ← 프로그램 버전 (한 곳에서만 관리)
+build.py           ← exe 빌드 스크립트 (로컬·CI 공용)
 test_core.py       ← 회귀 테스트
 template.txt       ← 메일 문구
 CHANGELOG.md       ← 버전별 변경 내역 (배포 페이지 설명으로 쓰임)
@@ -117,18 +118,31 @@ Windows 러너에서 자동으로 빌드합니다.
 
 **방법 B — 윈도우 PC에서 직접 빌드**
 
-[`빌드.bat`](빌드.bat)을 **더블클릭**하면 패키지 설치 → 로직 점검 → 빌드까지 자동 진행됩니다.
-결과물은 `dist\급여명세서발송기.exe`.
-
-직접 명령으로 하려면:
-```bat
-pip install -r requirements.txt pyinstaller
-pyinstaller --onefile --windowed --name PayrollSender ^
-    --hidden-import win32timezone --collect-data pdfminer payroll_gui.py
-ren dist\PayrollSender.exe 급여명세서발송기.exe
+저장소 폴더에서 [`build.py`](build.py)를 실행합니다. cmd, PowerShell, **MSYS2, Git Bash 어디서든** 됩니다.
+```bash
+py build.py                     # 일반 빌드
+py build.py --sample 샘플.pdf    # 실제 샘플 PDF로 전체 검사까지 하고 빌드
+py build.py --clean-venv        # 빌드용 가상환경을 새로 만들고 빌드
 ```
+결과물은 `dist\급여명세서발송기.exe`, 배포용 묶음은 `package\`.
+GitHub Actions도 같은 `build.py`로 빌드하므로, PyInstaller 옵션은 **`build.py` 한 곳만** 고치면 됩니다.
+
+`build.py`가 해주는 것:
+- **윈도우용 정식 파이썬인지 확인.** MSYS2/Git Bash의 python(MSYS용)으로 실행하면 `py` 런처로
+  정식 파이썬을 찾아 **스스로 다시 실행**합니다. MSYS용 python에서는 `pywin32`(Outlook 연동)가
+  설치되지 않아, 발송이 안 되는 exe가 나올 수 있기 때문입니다.
+- 빌드 전용 가상환경(`.venv-build`)을 만들어 PC의 다른 패키지와 섞이지 않게 합니다.
+  `requirements.txt`가 바뀌지 않으면 다음 빌드부터는 설치를 건너뜁니다.
+- **빌드 전**에 `tkinter`·`win32com`·`pythoncom`·`pdfplumber`·`pypdf`·`pandas`·`openpyxl`이
+  실제로 import 되는지 확인하고, 하나라도 안 되면 빌드하지 않습니다.
+- **빌드 후**에 exe 안에 필수 모듈이 들어갔는지 확인하고, 빠졌으면 실패로 처리합니다.
+
+윈도우용 파이썬이 없으면 https://www.python.org/downloads/windows/ 에서 3.11 이상을 설치하세요.
+설치 화면에서 **py launcher**와 **tcl/tk and IDLE** 항목이 켜져 있어야 합니다.
+
+PyInstaller 옵션 설명 (`build.py`의 `PYINSTALLER_ARGS`):
 - `--hidden-import win32timezone` : pywin32 빌드 시 누락되는 모듈
-- `--collect-data pdfminer` : pdfplumber가 쓰는 pdfminer cmap 데이터 포함
+- `--collect-data pdfminer` : pdfplumber가 쓰는 pdfminer cmap 데이터(한글 추출에 필요)
 - 빌드 이름을 ASCII(`PayrollSender`)로 잡고 나중에 바꾸는 이유는, PyInstaller에
   비ASCII `--name`을 주면 환경에 따라 실패하는 경우가 있기 때문입니다.
 

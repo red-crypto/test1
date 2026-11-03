@@ -17,6 +17,8 @@ config.json
 # ── 빌드 산출물 ───────────────────────────────────────────
 build/
 dist/
+package/
+.venv-build/
 *.spec
 __pycache__/
 *.pyc
