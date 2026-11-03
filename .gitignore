@@ -25,3 +25,4 @@ __pycache__/
 
 # ── 예외: 저장소에 포함해도 되는 것 (개인정보 없음) ───────
 !mapping_예시.xlsx
+!tests/fixtures/**/*.pdf

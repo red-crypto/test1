@@ -354,48 +354,115 @@ def validate_mapping(emp: pd.DataFrame):
 # ============================================================
 LOG_HEADER = ["발송시각", "이름", "수신주소", "파일명", "결과"]
 
-# 로그에서 '이미 성공적으로 발송됨'으로 간주하는 결과값
-RESULT_SENT = "발송"          # 실제 주소로 실제 발송 성공
+# ── 발송 단계에서 남기는 결과 ──
+RESULT_SENT = "발송"          # 실제 주소로 .Send() 호출 성공 (아직 '나갔는지'는 모름)
 RESULT_DRAFT = "초안"          # .Display() 로 초안만 띄움
 RESULT_TEST = "테스트발송"      # 테스트 수신자에게만 보냄
 RESULT_FAIL = "실패"
+
+# ── 전달 확인 단계에서 남기는 결과 (v1.1.0) ──
+# .Send()는 '보낼 편지함'에 넣을 뿐이라, 실제로 나갔는지는 Outlook 보낸 편지함에서
+# 확인해야 한다. 확인 결과를 같은 CSV에 한 줄씩 덧붙인다(감사 기록).
+RESULT_CONFIRMED = "발송확인"    # 보낸 편지함에서 그 주소·그 첨부로 나간 것을 확인
+RESULT_DELIVERED = "배달확인"    # 받는 쪽 서버의 '배달됨' 보고서를 받음(배달 확인 요청 시)
+RESULT_BOUNCED = "반송"         # 받는 쪽 서버가 '배달되지 않음'으로 돌려보냄
+RESULT_UNCONFIRMED = "확인필요"  # 발송 기록은 있으나 보낸 편지함에서 찾지 못함
+
+# 파일별 '최종 상태' (sent_states 반환값)
+STATE_CONFIRMED = "confirmed"      # 나간 것이 확인됨 → 다음 실행 때 '발송됨'(체크 해제)
+STATE_BOUNCED = "bounced"          # 반송됨 → 주소 확인 후 재발송 필요
+STATE_UNCONFIRMED = "unconfirmed"  # 발송 시도는 했으나 나갔는지 모름 → '확인 필요'
+
+_STATE_OF_RESULT = {
+    RESULT_SENT: STATE_UNCONFIRMED,
+    RESULT_UNCONFIRMED: STATE_UNCONFIRMED,
+    RESULT_CONFIRMED: STATE_CONFIRMED,
+    RESULT_DELIVERED: STATE_CONFIRMED,
+    RESULT_BOUNCED: STATE_BOUNCED,
+}
+
+
+def state_of_result(result: str):
+    """기록 결과값 → 파일 최종 상태(STATE_*). 상태에 영향 없는 값(초안·테스트 등)은 None."""
+    return _STATE_OF_RESULT.get(result)
 
 
 def log_path_for(app_dir: Path, yyyymm: str) -> Path:
     return app_dir / f"발송기록_{yyyymm}.csv"
 
 
+def fallback_log_path_for(app_dir: Path, yyyymm: str) -> Path:
+    """본 기록 파일이 엑셀 등에서 열려 있어 쓸 수 없을 때 대신 쓰는 보조 파일."""
+    return app_dir / f"발송기록_{yyyymm}_보조.csv"
+
+
 def append_log(app_dir: Path, yyyymm: str, name: str, to_addr: str,
                filename: str, result: str):
-    """발송 결과 한 건을 CSV에 추가. (급여 금액·생년월일 전체는 기록하지 않음)"""
-    path = log_path_for(app_dir, yyyymm)
-    is_new = not path.exists()
-    with open(path, "a", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        if is_new:
-            w.writerow(LOG_HEADER)
-        w.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    name, to_addr, filename, result])
+    """
+    발송 결과 한 건을 CSV에 추가한다. (급여 금액·생년월일 전체는 기록하지 않음)
+
+    ※ 절대 예외를 던지지 않는다.
+      발송 도중 기록 파일이 엑셀에서 열려 있으면 쓰기가 실패하는데, 예전에는 그
+      예외 때문에 나머지 직원 발송이 중단되고 이미 나간 메일은 기록이 안 남았다.
+      → 본 파일에 못 쓰면 보조 파일에 쓰고, 둘 다 실패하면 None을 돌려준다.
+    반환: 실제로 기록한 파일 경로, 또는 None(기록 실패)
+    """
+    row = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, to_addr, filename, result]
+    for path in (log_path_for(app_dir, yyyymm), fallback_log_path_for(app_dir, yyyymm)):
+        try:
+            is_new = not path.exists()
+            with open(path, "a", newline="", encoding="utf-8-sig") as f:
+                w = csv.writer(f)
+                if is_new:
+                    w.writerow(LOG_HEADER)
+                w.writerow(row)
+            return path
+        except OSError:
+            continue
+    return None
+
+
+def read_log_rows(app_dir: Path, yyyymm: str) -> list:
+    """본 기록 + 보조 기록을 시간 순으로 합쳐 돌려준다. 읽지 못한 파일은 건너뜀."""
+    rows = []
+    for order, path in enumerate((log_path_for(app_dir, yyyymm),
+                                  fallback_log_path_for(app_dir, yyyymm))):
+        if not path.exists():
+            continue
+        try:
+            with open(path, "r", newline="", encoding="utf-8-sig") as f:
+                for i, row in enumerate(csv.DictReader(f)):
+                    rows.append(((row.get("발송시각") or ""), order, i, row))
+        except Exception:
+            pass
+    rows.sort(key=lambda t: t[:3])          # 시각 → 파일 → 줄 순서 (같은 초면 기록 순서 유지)
+    return [t[3] for t in rows]
+
+
+def sent_states(app_dir: Path, yyyymm: str) -> dict:
+    """
+    파일명별 '최종 발송 상태'를 돌려준다. {파일명: {"state": ..., "to": 주소}}
+    가장 나중 기록이 이긴다(재발송·재확인 반영). 테스트발송/초안/실패는 무시.
+      - confirmed   : 보낸 편지함(또는 배달 보고서)으로 나간 것이 확인됨
+      - bounced     : 반송됨
+      - unconfirmed : 발송 시도 기록만 있고 확인 안 됨 (v1.1.0 이전 기록도 여기에 해당)
+    """
+    out = {}
+    for row in read_log_rows(app_dir, yyyymm):
+        fn, res = row.get("파일명"), row.get("결과")
+        if fn and res in _STATE_OF_RESULT:
+            out[fn] = {"state": _STATE_OF_RESULT[res], "to": row.get("수신주소", "")}
+    return out
 
 
 def already_sent_files(app_dir: Path, yyyymm: str) -> set:
     """
-    이번 달 로그에서 '실제로 정상 발송(RESULT_SENT)'된 파일명 집합을 돌려준다.
-    => 다음 실행 때 '발송됨'으로 표시하고 기본 체크 해제 → 중복 발송 방지.
+    이번 달에 실제 주소로 발송을 시도한 기록(RESULT_SENT)이 있는 파일명 집합.
     (테스트발송/초안/실패는 '보냈다'로 치지 않는다.)
+    ※ 화면 표시는 v1.1.0부터 sent_states()를 쓴다. 이 함수는 호환용으로 남겨 둔다.
     """
-    path = log_path_for(app_dir, yyyymm)
-    done = set()
-    if not path.exists():
-        return done
-    try:
-        with open(path, "r", newline="", encoding="utf-8-sig") as f:
-            for row in csv.DictReader(f):
-                if row.get("결과") == RESULT_SENT and row.get("파일명"):
-                    done.add(row["파일명"])
-    except Exception:
-        pass
-    return done
+    return {row["파일명"] for row in read_log_rows(app_dir, yyyymm)
+            if row.get("결과") == RESULT_SENT and row.get("파일명")}
 
 
 # ============================================================

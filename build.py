@@ -79,7 +79,7 @@ REQUIRED_MODULES = [
 # 빌드된 exe 안에 반드시 들어 있어야 하는 모듈
 REQUIRED_IN_BUNDLE = [
     "win32com.client", "pdfplumber", "pypdf", "pandas", "openpyxl",
-    "payroll_core", "payroll_version",
+    "payroll_core", "payroll_outlook", "payroll_version",
 ]
 
 NO_NATIVE_PYTHON_MSG = (
@@ -314,6 +314,9 @@ def run_tests(py: str, sample):
     else:
         info("PDF 없이 가능한 검사만 실행 (전체 검사: --sample 샘플.pdf)")
     run(cmd, "로직 점검")
+    # 화면·Outlook 없이 실제 GUI 발송 흐름을 끝까지 검사(중복 실행 차단, 전달 확인 등)
+    info("발송 흐름 검사 (가짜 화면·가짜 Outlook)")
+    run([py, str(ROOT / "tests" / "test_gui_flow.py")], "발송 흐름 검사")
 
 
 def run_pyinstaller(py: str):

@@ -201,9 +201,177 @@ def run_no_pdf() -> bool:
     print("생년월일 마스킹 (로그에 전체 노출 금지)")
     check(pc._mask_birth(FAKE_BIRTH) == "9001**", "마스킹 정상")
 
+    print("발송 기록 최종 상태 (v1.1.0)")
+    d2 = tmp / "states"
+    d2.mkdir()
+    pc.append_log(d2, "202610", FAKE_NAME, "hong@example.com", "a.pdf", pc.RESULT_SENT)
+    pc.append_log(d2, "202610", "이몽룡", "lee@example.com", "b.pdf", pc.RESULT_SENT)
+    pc.append_log(d2, "202610", "이몽룡", "lee@example.com", "b.pdf", pc.RESULT_CONFIRMED)
+    pc.append_log(d2, "202610", "성춘향", "bad@example.com", "c.pdf", pc.RESULT_BOUNCED)
+    pc.append_log(d2, "202610", "임꺽정", "t@example.com", "d.pdf", pc.RESULT_TEST)
+    st = {k: v["state"] for k, v in pc.sent_states(d2, "202610").items()}
+    check(st.get("a.pdf") == pc.STATE_UNCONFIRMED, "발송만 있고 확인 없음 → 확인 필요")
+    check(st.get("b.pdf") == pc.STATE_CONFIRMED, "보낸 편지함 확인 → 발송됨")
+    check(st.get("c.pdf") == pc.STATE_BOUNCED, "반송 → 반송됨")
+    check("d.pdf" not in st, "테스트발송은 직원 발송으로 치지 않음")
+    bad_main = pc.log_path_for(d2, "202610")
+    bad_main.rename(d2 / "moved.csv")
+    bad_main.mkdir()                                  # 본 파일에 쓸 수 없는 상황 재현
+    p = pc.append_log(d2, "202610", FAKE_NAME, "hong@example.com", "a.pdf", pc.RESULT_CONFIRMED)
+    check(p == pc.fallback_log_path_for(d2, "202610"), "본 기록 파일에 못 쓰면 보조 파일에 기록(예외 없음)")
+    bad_main.rmdir()
+    (d2 / "moved.csv").rename(bad_main)
+    check(pc.sent_states(d2, "202610")["a.pdf"]["state"] == pc.STATE_CONFIRMED,
+          "보조 파일 기록도 상태 계산에 반영")
+
+    _test_outlook_check(check)
+
     shutil.rmtree(tmp, ignore_errors=True)
     print(f"\n완료: {stat['ok']}개 통과, {stat['fail']}개 실패.")
     return stat["fail"] == 0
+
+
+# ------------------------------------------------------------
+# 가짜 Outlook 객체로 전달 확인 로직 검사 (Windows·Outlook 없이도 돌아감)
+# ------------------------------------------------------------
+class _Coll:
+    """Outlook 컬렉션 흉내: Count, Item(1부터)."""
+    def __init__(self, xs):
+        self._xs = list(xs)
+
+    @property
+    def Count(self):
+        return len(self._xs)
+
+    def Item(self, i):
+        return self._xs[i - 1]
+
+
+class _Items(_Coll):
+    def Sort(self, field, desc):
+        key = field.strip("[]")
+        self._xs.sort(key=lambda m: getattr(m, key), reverse=desc)
+
+
+class _Folder:
+    def __init__(self, mails):
+        self.mails = mails
+
+    @property
+    def Items(self):                 # 실제 Outlook처럼 꺼낼 때마다 새 목록
+        return _Items(self.mails)
+
+
+class _Rcpt:
+    def __init__(self, smtp, exchange=False):
+        self.Address = ("/o=ExchangeLabs/ou=Exchange/cn=Recipients/cn=x" if exchange else smtp)
+        self._smtp = smtp
+
+        class _PA:
+            def GetProperty(_, prop):
+                return smtp
+        self.PropertyAccessor = _PA()
+
+
+class _Att:
+    def __init__(self, fn):
+        self.FileName = fn
+
+
+class _Mail:
+    def __init__(self, when, to=None, files=(), mc="IPM.Note", subject="", body="", exchange=False):
+        self.SentOn = self.ReceivedTime = self.CreationTime = when
+        self.Recipients = _Coll([_Rcpt(a, exchange) for a in (to or [])])
+        self.To = ""
+        self.Attachments = _Coll([_Att(f) for f in files])
+        self.MessageClass, self.Subject, self.Body = mc, subject, body
+
+
+class _NS:
+    def __init__(self, sent=(), outbox=(), inbox=(), broken_sent=False):
+        self.f = {4: _Folder(list(outbox)), 5: _Folder(list(sent)), 6: _Folder(list(inbox))}
+        self.broken_sent = broken_sent
+        self.sendrecv = 0
+
+    def GetDefaultFolder(self, n):
+        if n == 5 and self.broken_sent:
+            raise RuntimeError("폴더 열기 실패")
+        return self.f[n]
+
+    def SendAndReceive(self, show):
+        """보내기/받기 흉내: 보낼 편지함의 메일을 보낸 편지함으로 옮긴다."""
+        self.sendrecv += 1
+        self.f[5].mails.extend(self.f[4].mails)
+        self.f[4].mails.clear()
+
+
+def _test_outlook_check(check):
+    from datetime import datetime as dt
+    import payroll_outlook as po
+
+    print("Outlook 전달 확인 (가짜 Outlook 객체)")
+    since = dt(2026, 11, 1)
+    subj = "2026년 10월 급여명세서"
+    exp = [
+        {"key": "ok",    "filename": "임금명세서_홍길동_.pdf", "to": "hong@example.com", "subject": subj},
+        {"key": "draft", "filename": "임금명세서_이몽룡_.pdf", "to": "lee@example.com",  "subject": subj},
+        {"key": "test",  "filename": "임금명세서_성춘향_.pdf", "to": "sung@example.com", "subject": subj},
+        {"key": "stuck", "filename": "임금명세서_임꺽정_.pdf", "to": "lim@example.com",  "subject": subj},
+        {"key": "ndr",   "filename": "임금명세서_장보고_.pdf", "to": "jang@exmple.com",  "subject": subj},
+        {"key": "exch",  "filename": "임금명세서_유관순_.pdf", "to": "yu@example.com",   "subject": subj},
+        {"key": "old",   "filename": "임금명세서_강감찬_.pdf", "to": "kang@example.com", "subject": subj},
+    ]
+    ns = _NS(
+        sent=[
+            _Mail(dt(2026, 11, 3, 9, 0), ["hong@example.com"], ["임금명세서_홍길동_.pdf"], subject=subj),
+            _Mail(dt(2026, 11, 3, 9, 1), ["me@example.com"], ["임금명세서_성춘향_.pdf"], subject=subj),   # 테스트 주소로 감
+            _Mail(dt(2026, 11, 3, 9, 2), ["jang@exmple.com"], ["임금명세서_장보고_.pdf"], subject=subj),  # 주소 오타
+            _Mail(dt(2026, 11, 3, 9, 3), ["yu@example.com"], ["임금명세서_유관순_.pdf"], subject=subj, exchange=True),
+            _Mail(dt(2026, 10, 2, 9, 0), ["kang@example.com"], ["임금명세서_강감찬_.pdf"], subject=subj),  # 기준일 이전
+            _Mail(dt(2026, 11, 2, 8, 0), ["x@example.com"], [], subject="첨부 없는 다른 메일"),
+        ],
+        outbox=[_Mail(dt(2026, 11, 3, 9, 4), ["lim@example.com"], ["임금명세서_임꺽정_.pdf"], subject=subj)],
+        inbox=[
+            _Mail(dt(2026, 11, 3, 9, 5), mc="REPORT.IPM.Note.NDR", subject="배달되지 않음: " + subj,
+                  body="다음 받는 사람에게 배달하지 못했습니다: jang@exmple.com"),
+            _Mail(dt(2026, 11, 3, 9, 6), mc="REPORT.IPM.Note.DR", subject="배달됨: 다른 제목",
+                  body="hong@example.com"),           # 다른 메일에 대한 보고서 → 무시돼야 함
+        ],
+    )
+    r = {k: v["status"] for k, v in po.check_delivery(ns, exp, since).items()}
+    check(r["ok"] == po.ST_SENT, "보낸 편지함에 그 주소·그 첨부 → 발송확인")
+    check(r["draft"] == po.ST_NOT_FOUND, "초안만 띄움(어디에도 없음) → 보낸 기록 없음")
+    check(r["test"] == po.ST_OTHER, "테스트 주소로 나감 → 다른 주소로 감")
+    check(r["stuck"] == po.ST_OUTBOX, "보낼 편지함에 갇힘 → 보낼편지함 대기")
+    check(r["ndr"] == po.ST_BOUNCED, "반송 보고서 → 반송")
+    check(r["exch"] == po.ST_SENT, "Exchange 사용자(X500 주소)도 SMTP 주소로 확인")
+    check(r["old"] == po.ST_NOT_FOUND, "기준일 이전 발송은 보지 않음")
+
+    ns_dr = _NS(sent=[_Mail(dt(2026, 11, 3, 9, 0), ["hong@example.com"], ["임금명세서_홍길동_.pdf"])],
+                inbox=[_Mail(dt(2026, 11, 3, 9, 2), mc="REPORT.IPM.Note.DR",
+                             subject="배달됨: " + subj, body="hong@example.com 에 배달됨")])
+    check(po.check_delivery(ns_dr, exp[:1], since)["ok"]["status"] == po.ST_DELIVERED,
+          "배달됨 보고서 → 배달확인")
+
+    ns_re = _NS(sent=[_Mail(dt(2026, 11, 3, 10, 0), ["jang@exmple.com"], ["임금명세서_장보고_.pdf"])],
+                inbox=[_Mail(dt(2026, 11, 3, 9, 5), mc="REPORT.IPM.Note.NDR",
+                             subject="배달되지 않음: " + subj, body="jang@exmple.com")])
+    check(po.check_delivery(ns_re, [exp[4]], since)["ndr"]["status"] == po.ST_SENT,
+          "재발송보다 먼저 온 반송 보고서는 이전 시도 것 → 무시")
+
+    ns_wait = _NS(outbox=[_Mail(dt(2026, 11, 3, 9, 0), ["hong@example.com"], ["임금명세서_홍길동_.pdf"])])
+    res = po.wait_and_check(ns_wait, exp[:1], since, timeout=10, interval=5, sleep=lambda s: None)
+    check(res["ok"]["status"] == po.ST_SENT and ns_wait.sendrecv >= 1,
+          "발송 직후: 보내기/받기 실행 후 보낸 편지함으로 옮겨진 것을 확인")
+
+    ns_never = _NS()
+    calls = []
+    res = po.wait_and_check(ns_never, exp[:1], since, timeout=10, interval=5, sleep=calls.append)
+    check(res["ok"]["status"] == po.ST_NOT_FOUND and sum(calls) == 10,
+          "끝내 안 나가면 정해진 시간만 기다리고 '보낸 기록 없음'")
+
+    r = po.check_delivery(_NS(broken_sent=True), exp[:1], since)
+    check(r["ok"]["status"] == po.ST_ERROR, "보낸 편지함을 못 열면 '확인 실패'(예외 없음)")
 
 
 if __name__ == "__main__":
