@@ -1,0 +1,118 @@
+# Windows 러너에서 급여명세서 발송기 exe를 자동으로 빌드한다.
+# 버전 태그(vX.Y.Z)를 푸시하면 빌드한 exe로 GitHub 배포(Release) 페이지까지 만든다.
+name: exe 빌드
+
+# 언제 도는가
+#  - 코드가 푸시될 때 자동 (빌드만, 결과는 Actions 아티팩트 — 30일 후 삭제)
+#  - 버전 태그 vX.Y.Z 푸시 → 빌드 + 배포 페이지(Release) 생성 — 삭제되지 않음
+#    (태그 푸시에는 아래 paths 조건이 적용되지 않는다)
+#  - Actions 탭에서 'Run workflow' 버튼으로 수동 실행도 가능
+on:
+  push:
+    branches: ["claude/**", develop, main]
+    tags: ["v*"]
+    paths:
+      - "payroll_*.py"
+      - "build.py"
+      - "test_core.py"
+      - "requirements.txt"
+      - "CHANGELOG.md"
+      - ".github/workflows/build-exe.yml"
+      - ".github/scripts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # exe는 반드시 Windows에서 빌드해야 한다(PyInstaller는 크로스 컴파일 불가)
+    runs-on: windows-latest
+
+    env:
+      # Windows 러너의 기본 stdout 인코딩은 cp1252라서 한글 출력이 깨진다.
+      # (코드에서도 stdout을 UTF-8로 재설정하지만, 여기서도 못박아 둔다)
+      PYTHONIOENCODING: "utf-8"
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 버전 확인 (태그 빌드일 때 — 태그와 프로그램 버전, 변경 내역 일치 검사)
+        if: github.ref_type == 'tag'
+        run: |
+          python .github/scripts/release_notes.py check "${{ github.ref_name }}"
+          python .github/scripts/release_notes.py notes "${{ github.ref_name }}"
+
+      - name: exe 빌드 (build.py — 로컬과 같은 스크립트, 같은 옵션)
+        # 패키지 설치 → 필수 모듈 확인(win32com·tkinter 등) → 로직 점검 →
+        # PyInstaller 빌드 → exe 내용 확인 → 한글 이름 변경 → package/ 묶음
+        # PyInstaller 옵션은 build.py 한 곳에서만 관리한다.
+        run: python build.py --no-pause
+
+      - name: exe 업로드 (Actions 탭에서 다운로드)
+        uses: actions/upload-artifact@v4
+        with:
+          name: 급여명세서발송기-windows
+          path: package/
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    # 버전 태그(vX.Y.Z) 푸시일 때만: 빌드된 exe를 배포 페이지(Release)에 첨부한다.
+    # 배포 페이지에는 그 버전의 소스 코드(zip/tar.gz)도 GitHub이 자동으로 붙인다.
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # 배포 페이지 생성에만 쓰기 권한 필요 (이 job에만 부여)
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 빌드 결과 받기
+        uses: actions/download-artifact@v4
+        with:
+          name: 급여명세서발송기-windows
+          path: package
+
+      - name: 배포용 zip 만들기
+        # 첨부 파일 이름은 영문으로 만든다(GitHub이 첨부 파일명의 한글을 바꿔버릴 수 있음).
+        # zip 안의 한글 파일명은 파이썬 zipfile이 UTF-8 표시를 붙여 저장 → 윈도우에서 정상 표시.
+        run: |
+          python -c "import shutil, sys; shutil.make_archive(sys.argv[1], 'zip', 'package')" \
+            "PayrollSender-${GITHUB_REF_NAME}-windows"
+          python -c "import zipfile, sys; [print(i.filename, i.file_size) for i in zipfile.ZipFile(sys.argv[1]).infolist()]" \
+            "PayrollSender-${GITHUB_REF_NAME}-windows.zip"
+
+      - name: 변경 내역 뽑기 (CHANGELOG.md)
+        run: python .github/scripts/release_notes.py notes "$GITHUB_REF_NAME" > notes.md
+
+      - name: 배포 페이지 만들기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="PayrollSender-${GITHUB_REF_NAME}-windows.zip"
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # 같은 버전을 다시 돌린 경우: 첨부 파일만 교체
+            gh release upload "$GITHUB_REF_NAME" "$ZIP" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$ZIP" \
+              --title "급여명세서 발송기 $GITHUB_REF_NAME" \
+              --notes-file notes.md \
+              --verify-tag
+          fi
+          gh release view "$GITHUB_REF_NAME"

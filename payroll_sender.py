@@ -21,6 +21,14 @@ from pathlib import Path
 
 import payroll_core as pc
 
+# Windows 콘솔의 기본 인코딩(cp1252/cp949)에서 한글 print가 깨지거나
+# UnicodeEncodeError로 죽는 것을 막는다.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ============================ 설정 ============================
 PDF_DIR   = Path(r"C:\Users\user\Downloads\payroll_test\202607")   # 이번 달 명세서 폴더
 MAP_XLSX  = Path(r"C:\Users\user\Downloads\payroll_test\mapping.xlsx")

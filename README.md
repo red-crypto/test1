@@ -51,6 +51,12 @@
 | **명부 검증 버튼** | 이메일 오류·생년월일 6자리 아님·중복 생년월일·빈칸을 미리 점검 |
 | **메일 문구 편집** | `template.txt`를 GUI에서 수정. `{이름}`, `{귀속월}` 치환. 코드 수정 불필요 |
 | **초안 모드** | `.Send()` 대신 `.Display()`로 초안만 띄우고 직접 발송 |
+| **대상 월 드롭다운** | 상위 폴더의 `YYYYMM` 폴더를 자동 스캔해 목록 제시(오타 방지) + PDF 개수 표시 |
+| **진행률 바** | 암호화·발송이 몇 명 중 몇 명인지 실시간 표시 |
+| **우클릭 메뉴** | 행에서 우클릭 → **"이 사람만 발송"**(실패 1명 재발송이 빠름) / 체크 / 상세 |
+| **문제만 보기 필터** | 경고·실패 행만 추려서 보기. 미리보기 후 첫 문제 행으로 자동 이동 |
+| **바로가기** | 대상 폴더 열기 / 발송기록(CSV) 열기 버튼 |
+| **상태 유지** | 창 크기·초안모드·마지막 대상 월까지 기억. `F5`=미리보기 |
 
 ---
 
@@ -74,11 +80,14 @@
 
 ### 구조
 ```
-payroll_core.py   ← 매칭/파싱/암호화/명부검증/로그/템플릿 (tkinter·win32 비의존, 단독 테스트 가능)
-payroll_gui.py    ← Tkinter GUI (payroll_core 사용)
-payroll_sender.py ← CLI 참고용 (payroll_core 공유)
-test_core.py      ← 회귀 테스트
-template.txt      ← 메일 문구
+payroll_core.py    ← 매칭/파싱/암호화/명부검증/로그/템플릿 (tkinter·win32 비의존, 단독 테스트 가능)
+payroll_gui.py     ← Tkinter GUI (payroll_core 사용)
+payroll_sender.py  ← CLI 참고용 (payroll_core 공유)
+payroll_version.py ← 프로그램 버전 (한 곳에서만 관리)
+build.py           ← exe 빌드 스크립트 (로컬·CI 공용)
+test_core.py       ← 회귀 테스트
+template.txt       ← 메일 문구
+CHANGELOG.md       ← 버전별 변경 내역 (배포 페이지 설명으로 쓰임)
 ```
 
 ### 설치 / 테스트
@@ -88,13 +97,87 @@ python test_core.py <샘플PDF경로>      # 세무사 포맷이 바뀌면 여�
 ```
 
 ### .exe 빌드
+
+> ⚠️ **exe는 반드시 Windows에서 빌드해야 합니다.**
+> PyInstaller는 크로스 컴파일을 지원하지 않아, Linux/Mac에서 빌드하면
+> 해당 OS용 바이너리가 나옵니다. 게다가 이 앱은 `win32com`(Outlook)에 의존합니다.
+
+**방법 A — GitHub Actions에서 자동 빌드 (권장, 윈도우 PC 불필요)**
+
+이 저장소에 푸시하면 [`.github/workflows/build-exe.yml`](.github/workflows/build-exe.yml)이
+Windows 러너에서 자동으로 빌드합니다.
+
+1. GitHub 저장소 → **Actions** 탭 → **exe 빌드** 워크플로 선택
+2. 최신 실행 결과 클릭 → 하단 **Artifacts**에서 `급여명세서발송기-windows` 다운로드
+3. 압축을 풀면 `급여명세서발송기.exe` + `template.txt` + `mapping_예시.xlsx` + `README.md` + `CHANGELOG.md`
+
+> 아티팩트는 **30일 후 삭제**되는 테스트용 빌드입니다. 대표님 PC에 넣을 exe는
+> 아래 **버전 관리 / 배포**의 배포 페이지(Releases)에서 받으세요.
+
+수동 실행은 Actions 탭의 **Run workflow** 버튼으로도 가능합니다.
+
+**방법 B — 윈도우 PC에서 직접 빌드**
+
+저장소 폴더에서 [`build.py`](build.py)를 실행합니다. cmd, PowerShell, **MSYS2, Git Bash 어디서든** 됩니다.
 ```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed --name 급여명세서발송기 ^
-    --hidden-import win32timezone payroll_gui.py
+py build.py                     # 일반 빌드
+py build.py --sample 샘플.pdf    # 실제 샘플 PDF로 전체 검사까지 하고 빌드
+py build.py --clean-venv        # 빌드용 가상환경을 새로 만들고 빌드
 ```
+결과물은 `dist\급여명세서발송기.exe`, 배포용 묶음은 `package\`.
+GitHub Actions도 같은 `build.py`로 빌드하므로, PyInstaller 옵션은 **`build.py` 한 곳만** 고치면 됩니다.
+
+`build.py`가 해주는 것:
+- **윈도우용 정식 파이썬인지 확인.** MSYS2/Git Bash의 python(MSYS용)으로 실행하면 `py` 런처로
+  정식 파이썬을 찾아 **스스로 다시 실행**합니다. MSYS용 python에서는 `pywin32`(Outlook 연동)가
+  설치되지 않아, 발송이 안 되는 exe가 나올 수 있기 때문입니다.
+- 빌드 전용 가상환경(`.venv-build`)을 만들어 PC의 다른 패키지와 섞이지 않게 합니다.
+  `requirements.txt`가 바뀌지 않으면 다음 빌드부터는 설치를 건너뜁니다.
+- **빌드 전**에 `tkinter`·`win32com`·`pythoncom`·`pdfplumber`·`pypdf`·`pandas`·`openpyxl`이
+  실제로 import 되는지 확인하고, 하나라도 안 되면 빌드하지 않습니다.
+- **빌드 후**에 exe 안에 필수 모듈이 들어갔는지 확인하고, 빠졌으면 실패로 처리합니다.
+
+윈도우용 파이썬이 없으면 https://www.python.org/downloads/windows/ 에서 3.11 이상을 설치하세요.
+설치 화면에서 **py launcher**와 **tcl/tk and IDLE** 항목이 켜져 있어야 합니다.
+
+PyInstaller 옵션 설명 (`build.py`의 `PYINSTALLER_ARGS`):
+- `--hidden-import win32timezone` : pywin32 빌드 시 누락되는 모듈
+- `--collect-data pdfminer` : pdfplumber가 쓰는 pdfminer cmap 데이터(한글 추출에 필요)
+- 빌드 이름을 ASCII(`PayrollSender`)로 잡고 나중에 바꾸는 이유는, PyInstaller에
+  비ASCII `--name`을 주면 환경에 따라 실패하는 경우가 있기 때문입니다.
+
 `config.json` / `template.txt` / `발송기록_*.csv`는 `sys.frozen` 여부에 따라
-**exe 옆 경로**에 저장됩니다.
+**exe 옆 경로**에 저장됩니다. 대표님 PC로는 **exe 하나만** 옮겨도 동작합니다
+(`template.txt`는 첫 실행 시 자동 생성).
+
+### 버전 관리 / 배포 (패치마다 따로 관리)
+
+배포할 exe는 **버전별 배포 페이지(GitHub Releases)**에서 받습니다.
+각 배포 페이지에는 그 버전의 **exe(zip)**와 **소스 코드**가 함께 있고, Actions 아티팩트와
+달리 **기한이 지나도 삭제되지 않습니다.**
+
+| 무엇 | 어디 | 용도 |
+|------|------|------|
+| `release/vX.Y.Z` 브랜치 | 저장소 브랜치 | 그 버전의 소스 (나중에 그 버전 기준으로 급히 고칠 때) |
+| `vX.Y.Z` 태그 | 저장소 태그 | 배포한 정확한 커밋 표시 |
+| 배포 페이지 | 저장소 → **Releases** | exe + 소스 코드 다운로드, 변경 내역 |
+
+현재 대표님 PC에 깔린 버전은 **창 제목**(`급여명세서 발송기 v1.0.1`)에서 확인합니다.
+
+**새 패치를 내는 순서:**
+1. 개발 브랜치에서 수정 → `python test_core.py` 통과 확인
+2. `payroll_version.py`의 `APP_VERSION`을 올린다 (예: `1.0.1` → `1.0.2`)
+3. `CHANGELOG.md` 맨 위에 `## [v1.0.2] - YYYY-MM-DD` 항목을 쓴다
+4. 커밋 후 버전 브랜치와 태그를 만들어 푸시한다
+   ```bash
+   git branch release/v1.0.2
+   git push origin release/v1.0.2
+   git tag -a v1.0.2 -m "v1.0.2"
+   git push origin v1.0.2
+   ```
+5. 태그 푸시가 끝나면 Actions가 자동으로 빌드하고 배포 페이지를 만든다
+   - 태그와 `APP_VERSION`이 다르거나 `CHANGELOG.md`에 해당 항목이 없으면 **빌드가 실패**한다
+     (버전 표시가 틀린 exe가 배포되는 사고 방지)
 
 ### 검증된 파싱 패턴 (payroll_core.py)
 | 필드 | 정규식 |
@@ -122,7 +205,7 @@ pyinstaller --onefile --windowed --name 급여명세서발송기 ^
 샘플이 1건뿐이라 아래는 **여러 직원 파일 확보 후** 확인이 필요합니다.
 (현재 설계는 아래가 어떻든 안전하도록 방어적으로 동작합니다.)
 
-- `생년월일(사번)` 뒤 괄호 숫자(예: `930124(48)`의 `48`)의 의미 —
+- `생년월일(사번)` 뒤 괄호 숫자(예: `YYMMDD(NN)`의 `NN`)의 의미 —
   현재는 참고용으로만 추출. 고유값으로 확인되면 동명이인+동일 생년월일 충돌을
   완전히 없애는 4번째 자물쇠로 승격 가능.
 - 동명이인 / 생년월일 중복 존재 여부 — 명부 검증 버튼이 중복을 잡아냄.
