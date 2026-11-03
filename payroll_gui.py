@@ -114,6 +114,10 @@ class App(tk.Tk):
         # 경로/월 변경 시 자동 반영
         self.base_var.trace_add("write", lambda *_: self._scan_months())
         self.month_var.trace_add("write", lambda *_: self._refresh_folder_hint())
+        # 초안 모드 / 테스트 수신자가 켜지면 즉시 경고 배너에 반영
+        self.display_var.trace_add("write", lambda *_: self._refresh_banner())
+        self.test_var.trace_add("write", lambda *_: self._refresh_banner())
+        self._refresh_banner()
         self._scan_months()
         self._refresh_folder_hint()
         self._first_run_guide_if_needed()
@@ -248,6 +252,12 @@ class App(tk.Tk):
                                         length=180, mode="determinate")
         self.progress.pack(side="right", padx=8)
 
+        # 3-1) 경고 배너 — '초안 모드'나 '테스트 수신자'가 켜져 있으면 크게 알린다.
+        #      이 두 값이 조용히 켜져 있으면 "발송했는데 메일이 안 나가는" 사고가 난다.
+        self.banner = tk.Label(self, text="", bg=BG, fg=DANGER, font=FONT_H2,
+                               anchor="w", justify="left")
+        self.banner.pack(fill="x", padx=14)
+
         # 4) 상태 요약 배지
         self.summary = tk.Frame(self, bg=BG)
         self.summary.pack(fill="x", padx=14)
@@ -341,6 +351,25 @@ class App(tk.Tk):
         except Exception:
             pass
 
+    def _refresh_banner(self):
+        """
+        '메일이 실제로 나가지 않는 상태'를 한눈에 보이게 한다.
+        초안 모드 / 테스트 수신자가 켜져 있으면 빨간 배너로 계속 경고.
+        """
+        msgs = []
+        if self.display_var.get():
+            msgs.append("초안 모드 켜짐 — 초안 창만 열리고 메일은 실제로 발송되지 않습니다")
+        t = self.test_var.get().strip()
+        if t:
+            msgs.append(f"테스트 수신자 지정됨 — 직원이 아니라 {t} 로만 갑니다")
+        try:
+            if msgs:
+                self.banner.config(text="⚠ " + "\n⚠ ".join(msgs), bg="#fef2f2", fg=DANGER)
+            else:
+                self.banner.config(text="", bg=BG)
+        except Exception:
+            pass
+
     def _refresh_folder_hint(self):
         d = self._target_dir()
         try:
@@ -358,13 +387,20 @@ class App(tk.Tk):
     # 설정 저장/복원
     # ============================================================
     def _save_config(self):
+        """
+        경로 등 '안전한 설정'만 저장한다.
+
+        ※ 중요 — '초안 모드'와 '테스트 수신자'는 절대 저장하지 않는다.
+          이 두 값이 저장되면 다음 실행 때 조용히 켜진 상태로 복원되어,
+          앱은 "발송 완료"라고 보고하는데 실제로는 메일이 나가지 않는
+          사고가 난다(초안 모드=드래프트만 띄움 / 테스트 수신자=전부 그 주소로).
+          매번 '즉시 발송 + 각 직원 실제 주소'에서 시작하는 것이 안전하다.
+        """
         try:
             CONFIG_PATH.write_text(json.dumps({
                 "base": self.base_var.get(),
                 "map": self.map_var.get(),
-                "test": self.test_var.get(),
                 "month": self.month_var.get(),
-                "display": self.display_var.get(),
                 "geometry": self.geometry(),
             }, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
@@ -375,14 +411,15 @@ class App(tk.Tk):
             cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
             self.base_var.set(cfg.get("base", ""))
             self.map_var.set(cfg.get("map", ""))
-            self.test_var.set(cfg.get("test", ""))
             if cfg.get("month"):
                 self.month_var.set(cfg["month"])
-            self.display_var.set(bool(cfg.get("display", False)))
             if cfg.get("geometry"):
                 self.geometry(cfg["geometry"])
         except Exception:
             pass
+        # 초안 모드 / 테스트 수신자는 의도적으로 복원하지 않는다(위 주석 참고).
+        self.display_var.set(False)
+        self.test_var.set("")
 
     def _on_close(self):
         self._save_config()
@@ -667,11 +704,23 @@ class App(tk.Tk):
                 f"실패: {names}\n\n"
                 f"해당 파일을 제외(체크 해제)하거나 원본을 확인한 뒤 다시 시도하세요.")
 
-        mode = "초안 띄우기" if self.display_var.get() else "즉시 발송"
-        who_to = f"테스트 수신자({test_mail})" if test_mail else "각 직원 실제 주소"
+        # 최종 확인 — '실제로 메일이 나가지 않는 설정'이면 분명하게 경고한다
+        warn = ""
+        if self.display_var.get():
+            mode = "초안만 띄우기 (메일 발송 안 됨)"
+            warn = ("\n\n⚠ 초안 모드입니다. 초안 창만 열리고 메일은 발송되지 않습니다.\n"
+                    "   실제로 보내려면 '초안만 띄우기'를 끄세요.")
+        else:
+            mode = "즉시 발송"
+        if test_mail:
+            who_to = f"테스트 수신자 {test_mail} (직원에게 가지 않음)"
+            warn += (f"\n\n⚠ 테스트 수신자가 지정되어 있습니다.\n"
+                     f"   모든 메일이 {test_mail} 로만 가고 직원은 받지 못합니다.")
+        else:
+            who_to = "각 직원 실제 주소"
         ok = messagebox.askyesno("발송 최종 확인",
             f"{pc._fmt_ym(month)} 급여명세서\n대상: {len(targets)}명\n"
-            f"방식: {mode}\n받는 곳: {who_to}\n\n정말 진행할까요?")
+            f"방식: {mode}\n받는 곳: {who_to}{warn}\n\n정말 진행할까요?")
         if not ok:
             self.w("\n[취소] 발송하지 않았습니다.")
             return
@@ -688,16 +737,38 @@ class App(tk.Tk):
 
         pythoncom.CoInitialize()
         try:
+            # Outlook이 이미 실행 중이면 그 세션에 붙는다(권장).
+            # 실행 중이 아니면 숨은 COM 서버로 띄우는데, 이 경우 .Send()가
+            # '보낼 편지함(Outbox)'에만 적재되고 전송되지 않은 채 남을 수 있다.
+            was_running = True
             try:
-                outlook = win32.Dispatch("Outlook.Application")
+                outlook = win32.GetActiveObject("Outlook.Application")
             except Exception:
-                raise FriendlyError(
-                    "Outlook을 실행할 수 없습니다.\n"
-                    "데스크톱 Outlook이 설치·로그인되어 있는지 확인하고, "
-                    "Outlook을 한 번 실행한 뒤 다시 시도하세요.\n"
-                    "(웹 전용 Outlook 환경은 지원하지 않습니다.)")
+                was_running = False
+                try:
+                    outlook = win32.Dispatch("Outlook.Application")
+                except Exception:
+                    raise FriendlyError(
+                        "Outlook을 실행할 수 없습니다.\n"
+                        "데스크톱 Outlook이 설치·로그인되어 있는지 확인하고, "
+                        "Outlook을 한 번 실행한 뒤 다시 시도하세요.\n"
+                        "(웹 전용 Outlook 환경은 지원하지 않습니다.)")
+
+            # MAPI 세션 확보 (로그온이 안 되어 있으면 전송이 안 될 수 있음)
+            ns = None
+            try:
+                ns = outlook.GetNamespace("MAPI")
+                ns.Logon()
+            except Exception:
+                pass   # 이미 로그온된 경우 등 — 실패해도 발송 자체는 시도한다
 
             display = self.display_var.get()
+            # 실제로 어떤 방식/수신처로 보내는지 로그에 남긴다(사후 추적용)
+            self.w(f"  방식: {'초안만 띄움(.Display)' if display else '즉시 발송(.Send)'}")
+            self.w(f"  받는 곳: {('테스트 수신자 ' + test_mail) if test_mail else '각 직원 실제 주소'}")
+            if not was_running:
+                self.w("  ⚠ Outlook이 실행 중이 아니어서 이 도구가 띄웠습니다. "
+                       "전송이 끝날 때까지 Outlook을 닫지 마세요.")
             self.progress["value"] = 0
             n_sent = 0
             for i, (iid, r) in enumerate(targets, 1):
@@ -724,6 +795,50 @@ class App(tk.Tk):
                 self.status.config(text=f"발송 {i}/{len(targets)}")
 
             self.w(f"\n완료. {n_sent}건 처리. (기록: 발송기록_{month}.csv)")
+
+            # ── 실제 전송 확인 ────────────────────────────────────────
+            # .Send()는 '보낼 편지함(Outbox)'에 넣을 뿐이다. Outlook이 전송을
+            # 수행하지 않으면 메일은 나가지 않는다. 강제로 전송을 돌리고,
+            # Outbox에 남은 게 있으면 크게 알린다.
+            if display:
+                self.w("\n⚠ 초안 모드였습니다. 메일은 아직 발송되지 않았습니다.")
+                self.w("   열린 초안 창에서 각각 '보내기'를 눌러야 실제로 발송됩니다.")
+                self.after(0, lambda: messagebox.showwarning(
+                    "초안만 생성됨",
+                    f"{n_sent}건의 초안 창만 열렸습니다.\n"
+                    f"메일은 아직 발송되지 않았습니다.\n\n"
+                    f"각 창에서 '보내기'를 눌러야 실제로 발송됩니다.\n"
+                    f"바로 발송하려면 '초안만 띄우기'를 끄고 다시 실행하세요."))
+            elif n_sent:
+                remaining = None
+                try:
+                    if ns is not None:
+                        ns.SendAndReceive(False)      # Outbox 강제 전송
+                        import time as _t
+                        _t.sleep(2)                   # 전송 처리 시간 확보
+                        remaining = ns.GetDefaultFolder(4).Items.Count  # 4=Outbox
+                except Exception:
+                    remaining = None
+
+                if remaining is None:
+                    self.w("   (보낼 편지함 상태를 확인하지 못했습니다. "
+                           "Outlook에서 '보낼 편지함'이 비었는지 꼭 확인하세요.)")
+                elif remaining > 0:
+                    self.w(f"\n⚠ 보낼 편지함에 {remaining}건이 아직 남아 있습니다 — "
+                           f"메일이 나가지 않았습니다.")
+                    self.after(0, lambda n=remaining: messagebox.showwarning(
+                        "아직 전송되지 않음",
+                        f"보낼 편지함(Outbox)에 {n}건이 남아 있습니다.\n"
+                        f"메일이 실제로 나가지 않은 상태입니다.\n\n"
+                        f"Outlook을 열어둔 채 잠시 기다리거나,\n"
+                        f"Outlook에서 '모든 폴더 보내기/받기'(F9)를 누르세요.\n"
+                        f"오프라인 모드가 켜져 있지 않은지도 확인하세요."))
+                else:
+                    self.w("   ✅ 보낼 편지함이 비었습니다 — 전송이 완료되었습니다.")
+                    self.after(0, lambda n=n_sent: messagebox.showinfo(
+                        "발송 완료", f"{n}건이 실제로 발송되었습니다.\n"
+                                     f"보낼 편지함이 비어 있어 전송이 확인되었습니다."))
+
             self.after(0, self._update_counts)
         finally:
             pythoncom.CoUninitialize()
